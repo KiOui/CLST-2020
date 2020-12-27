@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "nested_inline",
     "rest_framework",
-    "rest_framework_swagger",
     "guardian",
     "background_task",
     "scripts",
