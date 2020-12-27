@@ -3,11 +3,13 @@ from django.views.generic import TemplateView
 from django.shortcuts import render, redirect
 from os.path import basename, dirname
 from django.views.static import serve
-from .models import Project, Profile, Pipeline, BaseParameter
+from projects.models import Project
+from projects.forms import ProjectCreateForm
+from pipelines.models import Pipeline
+from .models import Profile, BaseParameter
 from django.http import JsonResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .forms import (
-    ProjectCreateForm,
     AlterDictionaryForm,
     ProfileSelectForm,
     ParameterForm,
@@ -498,56 +500,6 @@ class JsonProcess(TemplateView):
         return log_messages
 
 
-class ProjectOverview(LoginRequiredMixin, TemplateView):
-    """Class to handle get requests to the project overview page."""
-
-    login_url = "/accounts/login/"
-
-    template_name = "scripts/project-overview.html"
-
-    def get(self, request, **kwargs):
-        """
-        Handle requests to the project create page.
-
-        Get requests are handled within this class while the upload
-        post requests are handled in the upload app
-        with callback URLs upload/wav and upload/txt.
-        """
-        pipelines = Pipeline.objects.all()
-        form = ProjectCreateForm(request.user, None, pipelines=pipelines)
-        projects = Project.objects.filter(user=request.user.id)
-        return render(
-            request, self.template_name, {"form": form, "projects": projects},
-        )
-
-    def post(self, request, **kwargs):
-        """
-        POST request for the project create page.
-
-        :param request: the request
-        :param kwargs: keyword arguments
-        :return: a render of the fa-project-create page
-        """
-        pipelines = Pipeline.objects.all()
-        form = ProjectCreateForm(
-            request.user, request.POST, pipelines=pipelines
-        )
-        projects = Project.objects.filter(user=request.user.id)
-        if form.is_valid():
-            pipeline_id = form.cleaned_data.get("pipeline")
-            project_name = form.cleaned_data.get("project_name")
-            pipeline = Pipeline.objects.get(id=pipeline_id)
-
-            project = Project.create_project(
-                project_name, pipeline, request.user
-            )
-            assign_perm("access_project", request.user, project)
-            return redirect("upload:upload_project", project=project)
-        return render(
-            request, self.template_name, {"form": form, "projects": projects},
-        )
-
-
 class ProjectDeleteView(LoginRequiredMixin, TemplateView):
     """View for deleting projects."""
 
@@ -579,7 +531,7 @@ class ProjectDeleteView(LoginRequiredMixin, TemplateView):
         """
         project = kwargs.get("project")
         project.delete()
-        return redirect("scripts:projects")
+        return redirect("projects:overview")
 
 
 def start_script_get_error(script_to_start, project, profile, parameters=None):

@@ -1,6 +1,6 @@
 
 {% if project.status == project.UPLOADING %}
-    <a class="btn btn-primary" href="{% url 'upload:upload_project' project=project %}">Continue</a>
+    <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Continue</a>
 {% elif project.status == project.FA_RUNNING %}
     <a class="btn btn-primary" href="{% url 'scripts:loading' project=project script=project.pipeline.fa_script %}">Continue</a>
 {% elif project.status == project.G2P_RUNNING %}

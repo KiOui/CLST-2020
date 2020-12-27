@@ -19,12 +19,12 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if active == "select" %}active{% endif %}" href="{% url 'scripts:projects' %}">
+                <a class="nav-link {% if active == "select" %}active{% endif %}" href="{% url 'projects:overview' %}">
                     1. Select project
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if active == "upload" %}active{% elif project_status < 0 %}disabled{% endif %}" href="{% if project_status >= 0 %}{% url 'upload:upload_project' project=project %}{% endif %}">
+                <a class="nav-link {% if active == "upload" %}active{% elif project_status < 0 %}disabled{% endif %}" href="{% if project_status >= 0 %}{% url 'projects:project_detail' project=project %}{% endif %}">
                     2. Upload files
                 </a>
             </li>
@@ -57,7 +57,7 @@
                     {% if user.is_staff %}
                         <a class="dropdown-item" href="{% url 'admin:index' %}">Site admin</a>
                     {% endif %}
-                    <a class="dropdown-item" href="{% url "scripts:projects" %}">My projects</a>
+                    <a class="dropdown-item" href="{% url "projects:overview" %}">My projects</a>
                     <a class="dropdown-item" href="{% url "accounts:password" %}">Change password</a>
                     <a class="dropdown-item" href="{% url 'accounts:logout' %}">Log out</a>
                 </div>
