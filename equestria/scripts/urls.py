@@ -2,11 +2,11 @@
 from django.urls import path, register_converter
 from .views import *
 from .converters import (
-    ProjectConverter,
     ProfileConverter,
     ProcessConverter,
     ScriptConverter,
 )
+from projects.converters import ProjectConverter
 
 register_converter(ProjectConverter, "project")
 register_converter(ProfileConverter, "profile")
@@ -14,7 +14,6 @@ register_converter(ProcessConverter, "process")
 register_converter(ScriptConverter, "script")
 
 urlpatterns = [
-    path("projects", ProjectOverview.as_view(), name="projects"),
     path(
         "projects/<project:project>/delete",
         ProjectDeleteView.as_view(),

@@ -13,12 +13,11 @@ import logging
 from django.conf import settings
 import os
 import secrets
-from django.contrib.auth import get_user_model
 import zipfile
-from .services import zip_dir
+from clam.common import parameters as clam_parameters
+
 from .tasks import update_script
 
-# Create your models here.
 
 STATUS_CREATED = 0
 STATUS_UPLOADING = 1
@@ -39,19 +38,6 @@ STATUS = (
     (STATUS_ERROR, "Error"),
     (STATUS_ERROR_DOWNLOAD, "Error while downloading files from CLAM"),
 )
-
-User = get_user_model()
-
-
-def user_data_folder_path():
-    """
-    Get the user data folder path.
-
-    This function exists because otherwise the migrations for the Django Process and Project object
-    will not display the correct path
-    :return: settings.USER_DATA_FOLDER
-    """
-    return settings.USER_DATA_FOLDER
 
 
 class Script(Model):
@@ -83,8 +69,6 @@ class Script(Model):
         """
         Save function to load profile data from CLAM.
 
-        :param args: arguments
-        :param kwargs: keyword arguments
         :return: super(Script, self).save()
         """
         # First contact CLAM to get the profile data
@@ -351,12 +335,10 @@ class Process(Model):
         output_path                   Path to the primary output file (e.g. output/error.log)
     """
 
-    script = ForeignKey(Script, on_delete=SET_NULL, blank=False, null=True)
+    script = ForeignKey(Script, on_delete=CASCADE, blank=False, null=False)
     clam_id = CharField(max_length=256, null=True, default=None)
     status = IntegerField(choices=STATUS, default=0)
-    folder = FilePathField(
-        allow_folders=True, allow_files=False, path=user_data_folder_path
-    )
+    folder = FilePathField(allow_folders=True, allow_files=False)
 
     def __str__(self):
         """Convert this object to string."""
@@ -421,7 +403,7 @@ class Process(Model):
 
         :return: the absolute path to the output folder
         """
-        return os.path.join(self.folder, Project.OUTPUT_FOLDER)
+        return os.path.join(self.folder, projects.models.Project.OUTPUT_FOLDER)
 
     def set_status(self, status):
         """
@@ -625,7 +607,9 @@ class Process(Model):
             clamclient.downloadarchive(self.clam_id, downloaded_archive, "zip")
             with zipfile.ZipFile(downloaded_archive, "r") as zip_ref:
                 zip_ref.extractall(
-                    os.path.join(self.folder, Project.OUTPUT_FOLDER)
+                    os.path.join(
+                        self.folder, projects.models.Project.OUTPUT_FOLDER
+                    )
                 )
             os.remove(downloaded_archive)
             return True
@@ -722,7 +706,7 @@ class LogMessage(Model):
 
     time = DateTimeField(null=True)
     message = CharField(max_length=16384)
-    process = ForeignKey(Process, on_delete=CASCADE)
+    process = ForeignKey(Process, on_delete=CASCADE, null=False, blank=False)
     index = PositiveIntegerField()
 
 
@@ -735,7 +719,7 @@ class Profile(Model):
         process                 The process associated with this profile.
     """
 
-    script = ForeignKey(Script, on_delete=SET_NULL, null=True)
+    script = ForeignKey(Script, on_delete=CASCADE, null=False, blank=False)
 
     class Meta:
         """
@@ -846,7 +830,9 @@ class InputTemplate(Model):
     optional = BooleanField()
     unique = BooleanField()
     accept_archive = BooleanField()
-    corresponding_profile = ForeignKey(Profile, on_delete=SET_NULL, null=True)
+    corresponding_profile = ForeignKey(
+        Profile, on_delete=CASCADE, null=False, blank=False
+    )
 
     def move_corresponding_files(self, from_directory, to_directory):
         """
@@ -933,356 +919,6 @@ class InputTemplate(Model):
         verbose_name_plural = "Input templates"
 
 
-class Pipeline(Model):
-    """Pipeline model class."""
-
-    name = CharField(max_length=512)
-    fa_script = ForeignKey(
-        Script,
-        on_delete=CASCADE,
-        blank=False,
-        null=False,
-        related_name="fa_script",
-    )
-    g2p_script = ForeignKey(
-        Script,
-        on_delete=CASCADE,
-        blank=False,
-        null=False,
-        related_name="g2p_script",
-    )
-
-    def __str__(self):
-        """
-        Convert this object to a string.
-
-        :return: the name property of this object
-        """
-        return self.name
-
-
-class Project(Model):
-    """Project model class."""
-
-    UPLOADING = 0
-    FA_RUNNING = 1
-    G2P_RUNNING = 2
-    CHECK_DICTIONARY = 3
-
-    TYPES = (
-        (UPLOADING, "Uploading"),
-        (FA_RUNNING, "FA running"),
-        (G2P_RUNNING, "G2P running"),
-        (CHECK_DICTIONARY, "Check dictionary"),
-    )
-
-    EXTRACT_FOLDER = "extract"
-    OUTPUT_FOLDER = "output"
-
-    name = CharField(max_length=512)
-    folder = FilePathField(
-        allow_folders=True, allow_files=False, path=user_data_folder_path
-    )
-    pipeline = ForeignKey(Pipeline, on_delete=CASCADE, blank=False, null=False)
-    user = ForeignKey(User, on_delete=SET_NULL, null=True)
-    current_process = ForeignKey(
-        Process, on_delete=SET_NULL, null=True, blank=True
-    )
-
-    def move_extracted_files(self, extensions):
-        """
-        Move extracted files to the project folder.
-
-        :param extensions: the allowed extensions
-        :return: a list of non-moved files
-        """
-        non_copied = list()
-        if os.path.exists(os.path.join(self.folder, Project.EXTRACT_FOLDER)):
-            for root, _, files in os.walk(
-                os.path.join(self.folder, Project.EXTRACT_FOLDER)
-            ):
-                for file in files:
-                    name, extension = os.path.splitext(file)
-                    if extension[1:] in extensions:
-                        shutil.copy(os.path.join(root, file), self.folder)
-                    else:
-                        non_copied.append(file)
-        return non_copied
-
-    def __str__(self):
-        """Convert this object to string."""
-        return self.name
-
-    @staticmethod
-    def create_project(name, pipeline, user):
-        """
-        Create a project, also create a directory for storing the files of the created project.
-
-        :param name: the name of the project, per user there can only be one unique project per name
-        :param pipeline: the pipeline for which to create the project
-        :param user: the user for which to create the project
-        :return: a ValueError if either the project name or directory already exists, otherwise a new Project object
-        """
-        project_qs = Project.objects.filter(name=name, user=user)
-        if project_qs.exists():
-            raise ValueError(
-                "Failed to create project, project called {} from {} does already exist.".format(
-                    name, user
-                )
-            )
-        else:
-            folder = os.path.join(
-                os.path.join(settings.USER_DATA_FOLDER, user.username), name
-            )
-            if os.path.exists(folder):
-                raise ValueError(
-                    "Failed to create project, folder {} does already exist.".format(
-                        folder
-                    )
-                )
-            else:
-                os.makedirs(folder)
-                os.makedirs(os.path.join(folder, Project.OUTPUT_FOLDER))
-                return Project.objects.create(
-                    name=name, folder=folder, pipeline=pipeline, user=user
-                )
-
-    @property
-    def status(self):
-        """
-        GET the status of this project.
-
-        :return: the next step of this project
-        """
-        return self.get_next_step()
-
-    def get_next_step(self):
-        """
-        Get the project status.
-
-        :return: a value in self.TYPES indicating the project status
-        """
-        if self.current_process is None:
-            if self.finished_fa():
-                return self.CHECK_DICTIONARY
-            else:
-                return self.UPLOADING
-        else:
-            if self.current_process.script == self.pipeline.fa_script:
-                return self.FA_RUNNING
-            elif self.current_process.script == self.pipeline.g2p_script:
-                return self.G2P_RUNNING
-            else:
-                raise ValueError(
-                    "Current script process is not an FA or G2P script"
-                )
-
-    def write_oov_dict_file_contents(self, content, name="default.oov.dict"):
-        """
-        Write content to .oov.dict file in project folder.
-
-        :param content: the content to write to the file
-        :param name: the name of the default file to write to
-        :return: None
-        """
-        path = self.get_oov_dict_file_path()
-        if path is not None:
-            with open(path, "w") as file:
-                file.write(content)
-        else:
-            with open(os.path.join(self.folder, name), "w") as file:
-                file.write(content)
-
-    def get_oov_dict_file_contents(self):
-        """
-        Get the content of the .oov.dict file in the project folder.
-
-        :return: the content of the .oov.dict file, an emtpy string if such a file does not exist
-        """
-        path = self.get_oov_dict_file_path()
-        if path is not None:
-            with open(path, "r") as file:
-                return file.read()
-        else:
-            return ""
-
-    def get_oov_dict_file_path(self):
-        """
-        Get the file path of the .oov.dict file in the folder directory.
-
-        :return: the file path of the .oov.dict file, or None if such a file does not exist
-        """
-        for file_name in os.listdir(self.folder):
-            full_file_path = os.path.join(self.folder, file_name)
-            if os.path.isfile(full_file_path):
-                if file_name.endswith(".oov.dict"):
-                    return full_file_path
-        return None
-
-    def has_non_empty_extension_file(self, extensions, folder=None):
-        """
-        Check if a file ends with some extension.
-
-        :param extensions: a list of extensions that are valid.
-        :param folder: the folder to check, if None this function uses self.folder
-        :return: True if an .extension file is present with some text, False otherwise. Note: we may have multiple
-        files, but as long as one is non empty we return true. (e.g. we have a.ext and b.ext, a is empty but b is not
-        thus we return true).
-        """
-        if folder is None:
-            folder = self.folder
-
-        if not os.path.exists(folder) or not os.path.isdir(folder):
-            return False
-        if type(extensions) is not list:
-            raise TypeError("Extensions must be a list type")
-        for file_name in os.listdir(folder):
-            full_file_path = os.path.join(folder, file_name)
-            if os.path.isfile(full_file_path):
-                if file_name.endswith(tuple(extensions)):
-                    if os.stat(full_file_path).st_size != 0:
-                        return True
-
-        return False
-
-    def finished_fa(self):
-        """
-        Check if FA has finished.
-
-        :return: True if a .ctm file is present in the project directory, False otherwise
-        """
-        return self.has_non_empty_extension_file(
-            ["ctm"], folder=os.path.join(self.folder, Project.OUTPUT_FOLDER),
-        )
-
-    def create_downloadable_archive(self):
-        """
-        Create a downloadable archive.
-
-        :return: the filename of the downloadable archive
-        """
-        _, zip_filename = os.path.split(self.folder)
-        zip_filename = zip_filename + ".zip"
-        return os.path.join(
-            self.folder,
-            zip_dir(self.folder, os.path.join(self.folder, zip_filename)),
-        )
-
-    def can_upload(self):
-        """
-        Check whether files can be uploaded to this project.
-
-        :return: True if files can be uploaded to this project, False otherwise
-        """
-        return self.current_process is None
-
-    def can_start_new_process(self):
-        """
-        Check whether a new process can be started for this project.
-
-        :return: True if there are not running processes for this project, False otherwise
-        """
-        return self.current_process is None
-
-    def start_fa_script(self, profile, **kwargs):
-        """
-        Start the FA script with a given profile.
-
-        :param profile: the profile to start FA with
-        :return: the process with the started script, raises a ValueError if the files in the folder do not match the
-        profile, raises an Exception if a CLAM error occurred
-        """
-        return self.start_script(profile, self.pipeline.fa_script, **kwargs)
-
-    def start_g2p_script(self, profile, **kwargs):
-        """
-        Start the G2P script with a given profile.
-
-        :param profile: the profile to start G2P with
-        :return: the process with the started script, raises a ValueError if the files in the folder do not match the
-        profile, raises an Exception if a CLAM error occurred
-        """
-        return self.start_script(profile, self.pipeline.g2p_script, **kwargs)
-
-    def start_script(self, profile, script, parameter_values=None):
-        """
-        Start a new script and add the process to this project.
-
-        :param parameter_values: parameter values in (key, value) format in a dictionary
-        :param profile: the profile to start the script with
-        :param script: the script to start
-        :return: the process with the started script, raises a ValueError if the files in the folder do not match the
-        profile, raises an Exception if a CLAM error occurred
-        """
-        parameter_values = (
-            dict() if parameter_values is None else parameter_values
-        )
-
-        if not self.can_start_new_process():
-            raise Project.StateException
-        elif profile.script != script:
-            raise Profile.IncorrectProfileException
-
-        self.current_process = Process.objects.create(
-            script=script, folder=self.folder
-        )
-        self.save()
-        try:
-            self.current_process.start_safe(
-                profile, parameter_values=parameter_values
-            )
-            return self.current_process
-        except Exception as e:
-            self.cleanup()
-            raise e
-
-    def cleanup(self):
-        """
-        Reset the project to a clean state.
-
-        Resets the current process to None
-        :return: None
-        """
-        self.current_process = None
-        self.save()
-
-    def delete(self, **kwargs):
-        """
-        Delete a Project.
-
-        :param kwargs: keyword arguments
-        :return: None, deletes a project and removes the folder of that project
-        """
-        if os.path.exists(self.folder):
-            shutil.rmtree(self.folder, ignore_errors=True)
-        super(Project, self).delete(**kwargs)
-
-    def is_project_script(self, script):
-        """
-        Check if a script corresponds to this project.
-
-        :param script: the script to check
-        :return: True if it corresponds to this project, False otherwise
-        """
-        return (
-            script == self.pipeline.fa_script
-            or script == self.pipeline.g2p_script
-        )
-
-    class StateException(Exception):
-        """Exception to be thrown when the project has an incorrect state."""
-
-        pass
-
-    class Meta:
-        """Meta class for Project model."""
-
-        unique_together = ("name", "user")
-        permissions = [
-            ("access_project", "Access project"),
-        ]
-
-
 class BaseParameter(Model):
     """Base model for a parameter object."""
 
@@ -1305,7 +941,9 @@ class BaseParameter(Model):
     )
 
     name = CharField(max_length=1024)
-    corresponding_script = ForeignKey(Script, on_delete=SET_NULL, null=True)
+    corresponding_script = ForeignKey(
+        Script, on_delete=CASCADE, null=False, blank=False
+    )
     preset = BooleanField(default=False)
     type = IntegerField(choices=TYPES)
 
@@ -1317,19 +955,19 @@ class BaseParameter(Model):
         :param parameter: the CLAM parameter object
         :return: the type of the CLAM parameter in BaseParameter.TYPES types
         """
-        if parameter.__class__ == clam.common.parameters.BooleanParameter:
+        if parameter.__class__ == clam_parameters.BooleanParameter:
             return BaseParameter.BOOLEAN_TYPE
-        elif parameter.__class__ == clam.common.parameters.StaticParameter:
+        elif parameter.__class__ == clam_parameters.StaticParameter:
             return BaseParameter.STATIC_TYPE
-        elif parameter.__class__ == clam.common.parameters.StringParameter:
+        elif parameter.__class__ == clam_parameters.StringParameter:
             return BaseParameter.STRING_TYPE
-        elif parameter.__class__ == clam.common.parameters.ChoiceParameter:
+        elif parameter.__class__ == clam_parameters.ChoiceParameter:
             return BaseParameter.CHOICE_TYPE
-        elif parameter.__class__ == clam.common.parameters.TextParameter:
+        elif parameter.__class__ == clam_parameters.TextParameter:
             return BaseParameter.TEXT_TYPE
-        elif parameter.__class__ == clam.common.parameters.IntegerParameter:
+        elif parameter.__class__ == clam_parameters.IntegerParameter:
             return BaseParameter.INTEGER_TYPE
-        elif parameter.__class__ == clam.common.parameters.FloatParameter:
+        elif parameter.__class__ == clam_parameters.FloatParameter:
             return BaseParameter.FLOAT_TYPE
         else:
             raise TypeError("Type of parameter {} unknown".format(parameter))
@@ -1445,7 +1083,9 @@ class BaseParameter(Model):
 class BooleanParameter(Model):
     """Parameter for boolean values."""
 
-    base = OneToOneField(BaseParameter, on_delete=SET_NULL, null=True)
+    base = OneToOneField(
+        BaseParameter, on_delete=CASCADE, null=False, blank=False
+    )
     value = BooleanField(default=False, null=True, blank=True)
 
     def get_value(self):
@@ -1485,7 +1125,9 @@ class BooleanParameter(Model):
 class StaticParameter(Model):
     """Parameter for static values."""
 
-    base = OneToOneField(BaseParameter, on_delete=SET_NULL, null=True)
+    base = OneToOneField(
+        BaseParameter, on_delete=CASCADE, null=False, blank=False
+    )
     value = CharField(max_length=2048, null=True, blank=True)
 
     def get_value(self):
@@ -1522,7 +1164,9 @@ class StaticParameter(Model):
 class StringParameter(Model):
     """Parameter for string values."""
 
-    base = OneToOneField(BaseParameter, on_delete=SET_NULL, null=True)
+    base = OneToOneField(
+        BaseParameter, on_delete=CASCADE, null=False, blank=False
+    )
     value = CharField(max_length=2048, null=True, blank=True)
 
     def get_value(self):
@@ -1563,7 +1207,7 @@ class Choice(Model):
     """Model for choices in ChoiceParameter."""
 
     corresponding_choice_parameter = ForeignKey(
-        "ChoiceParameter", on_delete=SET_NULL, null=True
+        "ChoiceParameter", on_delete=CASCADE, null=False, blank=False
     )
     value = CharField(max_length=2048)
 
@@ -1601,7 +1245,9 @@ class Choice(Model):
 class ChoiceParameter(Model):
     """Parameter for choice values."""
 
-    base = OneToOneField(BaseParameter, on_delete=SET_NULL, null=True)
+    base = OneToOneField(
+        BaseParameter, on_delete=CASCADE, null=False, blank=False
+    )
     value = ForeignKey(Choice, on_delete=SET_NULL, null=True, blank=True)
 
     def get_value(self):
@@ -1671,7 +1317,9 @@ class ChoiceParameter(Model):
 class TextParameter(Model):
     """Parameter for text values."""
 
-    base = OneToOneField(BaseParameter, on_delete=SET_NULL, null=True)
+    base = OneToOneField(
+        BaseParameter, on_delete=CASCADE, null=False, blank=False
+    )
     value = TextField(null=True, blank=True)
 
     def get_value(self):
@@ -1711,7 +1359,9 @@ class TextParameter(Model):
 class IntegerParameter(Model):
     """Parameter for integer values."""
 
-    base = OneToOneField(BaseParameter, on_delete=SET_NULL, null=True)
+    base = OneToOneField(
+        BaseParameter, on_delete=CASCADE, null=False, blank=False
+    )
     value = IntegerField(null=True, blank=True)
 
     def get_value(self):
@@ -1751,7 +1401,9 @@ class IntegerParameter(Model):
 class FloatParameter(Model):
     """Parameter for float values."""
 
-    base = OneToOneField(BaseParameter, on_delete=SET_NULL, null=True)
+    base = OneToOneField(
+        BaseParameter, on_delete=CASCADE, null=False, blank=False
+    )
     value = FloatField(null=True, blank=True)
 
     def get_value(self):

@@ -17,7 +17,7 @@
                     <input type="submit" value="Delete {{ project.name }}" class="btn btn-danger"/>
                 </form>
                 <a class="btn btn-primary" href="{% url 'scripts:project_download' project=project %}">Download project archive</a>
-                <a href="{% url "scripts:projects" %}" class="btn btn-primary">Back</a>
+                <a href="{% url "projects:overview" %}" class="btn btn-primary">Back</a>
             </div>
         </div>
     </div>
