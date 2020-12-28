@@ -6,6 +6,8 @@ from guardian.shortcuts import assign_perm
 from pipelines.models import Pipeline
 from projects.forms import ProjectCreateForm
 from projects.models import Project, File
+from scripts.models import Profile
+
 from .forms import UploadForm
 
 
@@ -28,7 +30,7 @@ class ProjectDetailView(LoginRequiredMixin, TemplateView):
         if not request.user.has_perm("access_project", project):
             raise PermissionDenied
 
-        context = {"project": project}
+        context = {"project": project, "profiles": Profile.objects.filter(script=project.pipeline.fa_script)}
         if project.can_upload():
             context["upload_form"] = UploadForm()
         return render(request, self.template_name, context)

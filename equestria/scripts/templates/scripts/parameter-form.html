@@ -1,0 +1,7 @@
+{% if show_form %}
+    <h4>Parameter settings</h4>
+    <form id="parameter-form">
+        {% csrf_token %}
+        {{ form }}
+    </form>
+{% endif %}

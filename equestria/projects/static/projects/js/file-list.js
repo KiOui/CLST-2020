@@ -17,6 +17,10 @@ function item_deleted() {
     update_update_list();
 }
 
+function download_item(file_id) {
+    window.location.href = `/api/v1/projects/${project_id}/files/${file_id}/download`;
+}
+
 function refresh_file_list(data) {
     let file_item_list = create_element('div', ['file-item-list'], '');
     if (data.length > 0) {
@@ -26,7 +30,7 @@ function refresh_file_list(data) {
             let button_row = create_element('div', ['button-row', 'd-flex', 'flex-row'], '');
             let download_button = create_element('span', ['file-item-download', 'btn', 'btn-primary', 'flex-grow-1', 'mr-1'], 'Download');
             download_button.onclick = function () {
-                delete_item(data[i].id)
+                download_item(data[i].id)
             };
             button_row.appendChild(download_button);
             let delete_button = create_element('span', ['file-item-delete', 'btn', 'btn-danger', 'flex-grow-1'], 'Delete');

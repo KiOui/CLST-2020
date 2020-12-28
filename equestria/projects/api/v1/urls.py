@@ -5,6 +5,7 @@ from projects.api.v1.views import (
     FileRetrieveDestroyView,
     ProjectRetrieveDestroyView,
     project_clear_files,
+    download_project_file,
 )
 from projects.converters import ProjectConverter
 
@@ -33,4 +34,9 @@ urlpatterns = [
         project_clear_files,
         name="project-file-clear",
     ),
+    path(
+        "<project:project>/files/<int:pk>/download/",
+        download_project_file,
+        name="project-file-download",
+    )
 ]

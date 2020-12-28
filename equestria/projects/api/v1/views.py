@@ -1,3 +1,4 @@
+from django.http import FileResponse
 from projects.api.v1.permissions import IsOwner
 from projects.models import Project, File
 from rest_framework import mixins, viewsets, status
@@ -88,5 +89,25 @@ def project_clear_files(request, **kwargs):
     if request.user.is_authenticated and request.user == project.user:
         project.clear_project_folder()
         return Response(status=status.HTTP_200_OK)
+    else:
+        raise PermissionDenied
+
+
+@api_view(["GET"])
+def download_project_file(request, **kwargs):
+    """Download a project file."""
+    project = kwargs.get("project")
+    if request.user.is_authenticated and request.user == project.user:
+        try:
+            file = File.objects.get(project=project, pk=kwargs.get('pk'))
+        except File.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        file_handle = file.file.open()
+
+        response = FileResponse(file_handle)
+        response['Content-Length'] = file.file.size
+        response['Content-Disposition'] = 'attachment; filename="%s"' % file.filename
+
+        return response
     else:
         raise PermissionDenied

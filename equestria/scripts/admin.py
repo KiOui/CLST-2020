@@ -192,11 +192,3 @@ class InputTemplateAdmin(admin.ModelAdmin):
         "unique",
     ]
     list_filter = ["corresponding_profile", "extension"]
-
-
-@admin.register(models.Process)
-class ProcessAdmin(admin.ModelAdmin):
-    """Model admin for Processes."""
-
-    list_display = ["folder", "script", "status"]
-    list_filter = ["status", "script"]

@@ -2,7 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
-from scripts.models import Process, Profile
+from scripts.models import Profile
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -62,6 +62,10 @@ class Project(models.Model):
             os.path.join(settings.USER_DATA_FOLDER, self.user.username),
             self.name,
         )
+
+    @property
+    def files(self):
+        return File.objects.filter(project=self)
 
     def save(self, *args, **kwargs):
         """Save project."""
@@ -259,10 +263,10 @@ class Project(models.Model):
             raise Project.StateException
         elif profile.script != script:
             raise Profile.IncorrectProfileException
-
+        '''
         self.current_process = Process.objects.create(
             script=script, folder=self.folder
-        )
+        )'''
         self.save()
         try:
             self.current_process.start_safe(

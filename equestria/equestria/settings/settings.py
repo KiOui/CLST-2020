@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "pipelines",
     "projects",
     "accounts",
+    "processes",
     "equestria",
 ]
 

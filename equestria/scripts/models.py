@@ -1,43 +1,13 @@
 """Module to define db models related to the upload app."""
 import shutil
 
-import pytz
 from django.core.exceptions import ValidationError
 from django.db.models import *
 import clam.common.client
 import clam.common.data
 import clam.common.status
-import xml.etree.ElementTree as ET
-import datetime
-import logging
-from django.conf import settings
 import os
-import secrets
-import zipfile
 from clam.common import parameters as clam_parameters
-
-from .tasks import update_script
-
-
-STATUS_CREATED = 0
-STATUS_UPLOADING = 1
-STATUS_RUNNING = 2
-STATUS_WAITING = 3
-STATUS_DOWNLOADING = 4
-STATUS_FINISHED = 5
-STATUS_ERROR = -1
-STATUS_ERROR_DOWNLOAD = -2
-
-STATUS = (
-    (STATUS_CREATED, "Created"),
-    (STATUS_UPLOADING, "Uploading files to CLAM"),
-    (STATUS_RUNNING, "Running"),
-    (STATUS_WAITING, "Waiting for download from CLAM"),
-    (STATUS_DOWNLOADING, "Downloading files from CLAM"),
-    (STATUS_FINISHED, "Finished"),
-    (STATUS_ERROR, "Error"),
-    (STATUS_ERROR_DOWNLOAD, "Error while downloading files from CLAM"),
-)
 
 
 class Script(Model):
@@ -151,6 +121,10 @@ class Script(Model):
         :return: a QuerySet of BaseParameter objects corresponding to this script
         """
         return BaseParameter.objects.filter(corresponding_script=self)
+
+    @property
+    def variable_parameters(self):
+        return self.get_variable_parameters()
 
     def get_variable_parameters(self):
         """
@@ -268,10 +242,7 @@ class Script(Model):
 
         :return: None
         """
-        profiles = Profile.objects.filter(script=self)
-        for profile in profiles:
-            profile.remove_corresponding_templates()
-            profile.delete()
+        Profile.objects.filter(script=self).delete()
 
     def remove_corresponding_parameters(self):
         """
@@ -279,10 +250,7 @@ class Script(Model):
 
         :return: None
         """
-        parameters = BaseParameter.objects.filter(corresponding_script=self)
-        for parameter in parameters:
-            parameter.remove_corresponding_presets()
-            parameter.delete()
+        BaseParameter.objects.filter(corresponding_script=self).delete()
 
     def get_clam_server(self):
         """
@@ -312,6 +280,10 @@ class Script(Model):
                 valid_profiles.append(p)
         return valid_profiles
 
+    @property
+    def profiles(self):
+        return Profile.objects.filter(script=self)
+
     class Meta:
         """
         Display configuration for admin pane.
@@ -324,392 +296,6 @@ class Script(Model):
         verbose_name_plural = "Scripts"
 
 
-class Process(Model):
-    """
-    Database model for processes in CLAM.
-
-    Attributes:
-        name                          Name of the process.
-                                      Used for identification only, can be anything.
-        clam_id                       Identification number given by CLAM.
-        output_path                   Path to the primary output file (e.g. output/error.log)
-    """
-
-    script = ForeignKey(Script, on_delete=CASCADE, blank=False, null=False)
-    clam_id = CharField(max_length=256, null=True, default=None)
-    status = IntegerField(choices=STATUS, default=0)
-    folder = FilePathField(allow_folders=True, allow_files=False)
-
-    def __str__(self):
-        """Convert this object to string."""
-        return "Process for {} ({})".format(self.script, STATUS[self.status][1])
-
-    @staticmethod
-    def get_random_clam_id():
-        """
-        Get a random 32 bit string.
-
-        :return: a random 32 bit string
-        """
-        return secrets.token_hex(32)
-
-    def update_log_messages_from_xml(self, xml_data):
-        """
-        Update the log messages of this process from the CLAM xml data.
-
-        :param xml_data: the XML data send by CLAM including a <status> tag with an arbitrary amount of <log> tags
-        :return: None
-        """
-        try:
-            # The clamclient does not have a way to retrieve the log messages so we will do it ourselves.
-            xml = ET.fromstring(xml_data)
-            for index, item in enumerate(
-                reversed(list(xml.find("status").iter("log")))
-            ):
-                time = Process.parse_time_string(item.attrib["time"])
-                if not LogMessage.objects.filter(
-                    time=time, message=item.text, process=self, index=index
-                ).exists():
-                    LogMessage.objects.create(
-                        time=time, message=item.text, process=self, index=index
-                    )
-        except Exception as e:
-            logging.error(
-                "Failed to parse XML response from CLAM server. Error: {}".format(
-                    e
-                )
-            )
-
-    @staticmethod
-    def parse_time_string(time):
-        """
-        Parse the time string that CLAM passes.
-
-        :param time: the time string from CLAM
-        :return: a timezone aware datetime object, None when a ValueError was encountered
-        """
-        try:
-            tz = pytz.timezone(settings.TIME_ZONE)
-            return tz.localize(
-                datetime.datetime.strptime(time, "%d/%b/%Y %H:%M:%S")
-            )
-        except ValueError:
-            return None
-
-    @property
-    def output_folder(self):
-        """
-        Get an absolute path to the output folder.
-
-        :return: the absolute path to the output folder
-        """
-        return os.path.join(self.folder, projects.models.Project.OUTPUT_FOLDER)
-
-    def set_status(self, status):
-        """
-        Set the status for this process and save it to the Database.
-
-        :param status: the status to set for this process
-        :return: None
-        """
-        self.status = status
-        self.save()
-
-    def set_clam_id(self, clam_id):
-        """
-        Set the CLAM id for this process and save it to the Database.
-
-        :param clam_id: the CLAM id to set for this process
-        :return: None
-        """
-        self.clam_id = clam_id
-        self.save()
-
-    def start_safe(self, profile, parameter_values=None):
-        """
-        Start uploading files to CLAM and start the CLAM server in a safe way.
-
-        Actually only executes the start() method and runs the cleanup() method when an exception is raised.
-        :param profile: the profile to start this process with
-        :param parameter_values: a dictionary of (key, value) pairs with the parameter values to fill in, only
-        overwrites variable parameters
-        :return: True when the process was started, False otherwise, raises a ValueError if there was an error with the
-        input templates, raises an Exception if there was an error when uploading files to CLAM or when starting the
-        CLAM server, raises a ParameterException if one or more parameters are not satisfied
-        """
-        try:
-            return self.start(profile, parameter_values=parameter_values)
-        except Exception as e:
-            self.cleanup()
-            raise e
-
-    def start(self, profile, parameter_values=None):
-        """
-        Add inputs to clam server and starts it.
-
-        :param profile: the profile to run the process with
-        :param parameter_values: a dictionary of (key, value) pairs with the parameter values to fill in, only
-        overwrites variable parameters
-        :return: the status of this project, or a ValueError when an error is encountered with the uploaded files and
-        selected profile, an Exception for CLAM errors, or a ParameterException when a parameter is not satisfied
-        """
-        if parameter_values is None:
-            parameter_values = dict()
-
-        if self.status == STATUS_CREATED:
-            self.set_status(STATUS_UPLOADING)
-            self.set_clam_id(Process.get_random_clam_id())
-            clamclient = self.script.get_clam_server()
-            clamclient.create(self.clam_id)
-            templates = InputTemplate.objects.filter(
-                corresponding_profile=profile
-            )
-
-            merged_parameters = self.script.get_parameters_as_dict(
-                preset_parameters=parameter_values
-            )
-
-            if (
-                len(
-                    self.script.get_unsatisfied_parameters(
-                        merged_parameters.keys()
-                    )
-                )
-                != 0
-            ):
-                raise BaseParameter.ParameterException(
-                    "Not all parameters are satisfied"
-                )
-
-            self.upload_input_templates(templates)
-
-            clamclient.startsafe(self.clam_id, **merged_parameters)
-            self.set_status(STATUS_RUNNING)
-            update_script(self.pk)
-            return True
-        else:
-            return False
-
-    def upload_input_templates(self, templates):
-        """
-        Upload files corresponding to the input templates.
-
-        :param templates: a list of InputTemplate objects
-        :return: None, raises a ValueError if there is no file for the template or more than one file for a unique
-        template
-        """
-        clamclient = self.script.get_clam_server()
-        for template in templates:
-            files = template.is_valid_for(self.folder)
-            if not files and not template.optional:
-                raise ValueError(
-                    "No file specified for template {}".format(template)
-                )
-            if files:
-                if len(files) > 1 and template.unique:
-                    raise ValueError(
-                        "More than one file specified for unique template {}".format(
-                            template
-                        )
-                    )
-                for file in files:
-                    full_file_path = os.path.join(self.folder, file)
-                    clamclient.addinputfile(
-                        self.clam_id, template.template_id, full_file_path
-                    )
-
-    def cleanup(self, status=STATUS_CREATED):
-        """
-        Reset a project on the CLAM server by deleting it and resetting the clam id and status on Django.
-
-        :param status: the status to set the process to after this function has been ran, default=STATUS_CREATED
-        :return: None
-        """
-        if self.clam_id is not None:
-            try:
-                clamclient = self.script.get_clam_server()
-                clamclient.delete(self.clam_id)
-            except Exception as e:
-                logging.error(e)
-        self.clam_id = None
-        self.status = status
-        self.save()
-
-    def clam_update(self):
-        """
-        Update a process.
-
-        :return: True when the status was successfully updated (this means the status of this process could also be left
-        unchanged), False otherwise
-        """
-        if self.status == STATUS_RUNNING:
-            try:
-                clamclient = self.script.get_clam_server()
-                data = clamclient.get(self.clam_id)
-            except Exception as e:
-                logging.error(e)
-                return False
-            self.update_log_messages_from_xml(data.xml)
-            if data.status == clam.common.status.DONE:
-                self.set_status(STATUS_WAITING)
-            return True
-        else:
-            return False
-
-    def download_and_delete(self, next_script=None):
-        """
-        Download all files from a process, decompress them and delete the project from CLAM.
-
-        :return: True if downloading the files and extracting them succeeded, False otherwise
-        """
-        if (
-            self.status == STATUS_WAITING
-            or self.status == STATUS_ERROR_DOWNLOAD
-        ):
-            self.set_status(STATUS_DOWNLOADING)
-            if self.download_archive_and_decompress():
-                if next_script is not None:
-                    self.move_downloaded_output_files(next_script)
-                self.cleanup(status=STATUS_FINISHED)
-                return True
-            else:
-                self.set_status(STATUS_ERROR_DOWNLOAD)
-                return False
-        else:
-            return False
-
-    def move_downloaded_output_files(self, script):
-        """
-        Move downloaded output files that are needed for the next script to the main directory.
-
-        :param script: the next script
-        :return: None
-        """
-        templates = InputTemplate.objects.filter(
-            corresponding_profile__script=script
-        )
-        for template in templates:
-            template.move_corresponding_files(self.output_folder, self.folder)
-
-    def download_archive_and_decompress(self):
-        """
-        Download the output archive from the CLAM server.
-
-        :return: the location of the downloaded archive on success, False on failure
-        """
-        try:
-            clamclient = self.script.get_clam_server()
-            if not os.path.exists(self.output_folder):
-                os.makedirs(self.output_folder)
-            downloaded_archive = os.path.join(
-                self.output_folder, str(self.clam_id) + ".{}".format("zip")
-            )
-            clamclient.downloadarchive(self.clam_id, downloaded_archive, "zip")
-            with zipfile.ZipFile(downloaded_archive, "r") as zip_ref:
-                zip_ref.extractall(
-                    os.path.join(
-                        self.folder, projects.models.Project.OUTPUT_FOLDER
-                    )
-                )
-            os.remove(downloaded_archive)
-            return True
-        except Exception as e:
-            print(
-                "An error occurred while downloading and decompressing files from CLAM. Error: {}".format(
-                    e
-                )
-            )
-            return False
-
-    def is_finished(self):
-        """
-        Check if this process is finished.
-
-        :return: True if this process has a status of STATUS_FINISHED, False otherwise
-        """
-        return self.status == STATUS_FINISHED
-
-    def get_status_messages(self):
-        """
-        Get the status messages of this process.
-
-        :return: the status messages in a QuerySet
-        """
-        return LogMessage.objects.filter(process=self)
-
-    def get_output_file_name(self, extension="zip"):
-        """
-        Get a name of an not existing file to store data to.
-
-        :return: a path to a non existing file
-        """
-        return os.path.join(
-            self.folder, str(self.clam_id) + ".{}".format(extension)
-        )
-
-    def get_status_string(self):
-        """
-        Get the status of this project in string format.
-
-        :return: a string format of self.status
-        """
-        if self.status == STATUS_CREATED:
-            return "Ready to start"
-        elif self.status == STATUS_RUNNING:
-            return "Running"
-        elif self.status == STATUS_WAITING:
-            return "CLAM Done, waiting for download"
-        elif self.status == STATUS_DOWNLOADING:
-            return "Downloading files from CLAM"
-        elif self.status == STATUS_FINISHED:
-            return "Done"
-        elif self.status == STATUS_ERROR:
-            return "An error occurred"
-        else:
-            return "Unknown"
-
-    def get_status(self):
-        """
-        Get the status of this project.
-
-        :return: the status of the project
-        """
-        return self.status
-
-    def get_valid_profiles(self):
-        """
-        Get the profiles for which the current files meet the requirements.
-
-        :return:
-        """
-        profiles = Profile.objects.filter(script=self.script)
-        valid_profiles = []
-
-        for p in profiles:
-            if p.is_valid(self.folder):
-                valid_profiles.append(p)
-        return valid_profiles
-
-    class Meta:
-        """
-        Display configuration for admin pane.
-
-        Order admin list alphabetically by name.
-        Display plural correctly.
-        """
-
-        verbose_name_plural = "Processes"
-
-
-class LogMessage(Model):
-    """Class for saving CLAM log messages."""
-
-    time = DateTimeField(null=True)
-    message = CharField(max_length=16384)
-    process = ForeignKey(Process, on_delete=CASCADE, null=False, blank=False)
-    index = PositiveIntegerField()
-
-
 class Profile(Model):
     """
     Database model for profiles.
@@ -719,7 +305,7 @@ class Profile(Model):
         process                 The process associated with this profile.
     """
 
-    script = ForeignKey(Script, on_delete=CASCADE, null=False, blank=False)
+    script = ForeignKey(Script, related_name="profiles", on_delete=CASCADE, null=False, blank=False)
 
     class Meta:
         """
@@ -740,18 +326,6 @@ class Profile(Model):
         :return: string including the identifier of this object
         """
         return "Profile {}".format(self.pk)
-
-    def remove_corresponding_templates(self):
-        """
-        Remove the templates corresponding to this profile object.
-
-        :return: None
-        """
-        input_templates = InputTemplate.objects.filter(
-            corresponding_profile=self
-        )
-        for template in input_templates:
-            template.delete()
 
     def is_valid(self, folder):
         """
@@ -831,7 +405,7 @@ class InputTemplate(Model):
     unique = BooleanField()
     accept_archive = BooleanField()
     corresponding_profile = ForeignKey(
-        Profile, on_delete=CASCADE, null=False, blank=False
+        Profile, related_name="input_templates", on_delete=CASCADE, null=False, blank=False
     )
 
     def move_corresponding_files(self, from_directory, to_directory):
@@ -942,7 +516,7 @@ class BaseParameter(Model):
 
     name = CharField(max_length=1024)
     corresponding_script = ForeignKey(
-        Script, on_delete=CASCADE, null=False, blank=False
+        Script, related_name="parameters", on_delete=CASCADE, null=False, blank=False
     )
     preset = BooleanField(default=False)
     type = IntegerField(choices=TYPES)
@@ -1021,29 +595,21 @@ class BaseParameter(Model):
             else:
                 return None
 
-    def remove_corresponding_presets(self):
+    @property
+    def value(self):
         """
-        Remove all typed parameters corresponding to this parameter.
+        Get the default value of a parameter.
 
-        :return: None
+        :return: the default value of a parameter, None if the default value is not set
         """
-        parameter_classes = [
-            BooleanParameter,
-            StaticParameter,
-            StringParameter,
-            ChoiceParameter,
-            TextParameter,
-            IntegerParameter,
-            FloatParameter,
-        ]
-        for parameter_class in parameter_classes:
-            try:
-                obj = parameter_class.objects.get(base=self)
-                if parameter_class.__class__ == ChoiceParameter:
-                    obj.remove_corresponding_choices()
-                obj.delete()
-            except parameter_class.DoesNotExist:
-                pass
+        if not self.preset:
+            return None
+        else:
+            typed_parameter = self.get_typed_parameter()
+            if typed_parameter is not None:
+                return typed_parameter.get_value()
+            else:
+                return None
 
     def get_corresponding_value(self, value):
         """

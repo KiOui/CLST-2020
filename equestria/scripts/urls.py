@@ -3,14 +3,12 @@ from django.urls import path, register_converter
 from .views import *
 from .converters import (
     ProfileConverter,
-    ProcessConverter,
     ScriptConverter,
 )
 from projects.converters import ProjectConverter
 
 register_converter(ProjectConverter, "project")
 register_converter(ProfileConverter, "profile")
-register_converter(ProcessConverter, "process")
 register_converter(ScriptConverter, "script")
 
 urlpatterns = [
@@ -27,11 +25,6 @@ urlpatterns = [
         "cd/<project:project>",
         CheckDictionaryScreen.as_view(),
         name="cd_screen",
-    ),
-    path(
-        "process/<process:process>/status",
-        JsonProcess.as_view(),
-        name="process_details",
     ),
     path(
         "project/<project:project>/download",
