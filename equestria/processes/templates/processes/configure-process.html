@@ -15,9 +15,9 @@
             <form class="profile-item" id="profile-item-{{ profile.id }}" style="display: none;">
                 {% for template in profile.templates.all %}
                     <label for="file-selector-{{ template.id }}">{% if not template.optional %}<strong>{% endif %}{{ template.template_id }}{% if not template.optional %}*</strong>{% endif %}</label>
-                    <select {% if not template.unique %}multiple{% endif %} {% if not template.optional %}required{% endif %} class="w-100 file-selector" id="file-selector-{{ template.id }}">
+                    <select onchange="sync_with_server()" {% if not template.unique %}multiple{% endif %} {% if not template.optional %}required{% endif %} class="w-100 file-selector" id="file-selector-{{ template.id }}">
                         {% if template.optional %}
-                            <option value="">----------</option>
+                            <option value="null">----------</option>
                         {% endif %}
                         {% for file in project.files.all %}
                             <option value="{{ file.id }}">{{ file.filename }}</option>
@@ -40,8 +40,6 @@
         add_update_list(update_and_callback,
             ["{% url 'v1:project-file-listcreate' project=project %}", {}, set_file_options, method = "GET"], manual = true
         );
-        add_update_list(update_and_callback,
-            ["{% url 'v1:script-settings' project=project pk=project.pipeline.fa_script.pk %}", {}, sync_settings, method = "GET"], manual = true
-        );
+        let SYNC_SETTINGS_URL = '{% url 'v1:script-settings' project=project pk=project.pipeline.fa_script.pk %}';
     </script>
 {% endif %}

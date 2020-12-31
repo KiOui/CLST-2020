@@ -47,51 +47,56 @@
                        data-url="{% url 'v1:project-file-listcreate' project=project %}"
                        data-form-data='{"csrfmiddlewaretoken": "{{ csrf_token }}"}'>
                 <div class="rounded lighter padding mt-3">
-                    <h2>Project files</h2>
+                    <h2>Files</h2>
                     <div class="file-actions mt-2 mb-2 d-flex flex-row">
                         <div class="flex-grow-1"></div>
                         <div class="btn btn-danger" onclick="clear_directory(project_id);">Clear project directory</div>
                     </div>
-                    <ul class="nav nav-tabs" id="myTab" role="tablist">
-                      <li class="nav-item">
-                        <a class="nav-link active" id="files-tab" data-toggle="tab" href="#files" role="tab" aria-controls="files" aria-selected="true">Files</a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" id="profiles-tab" data-toggle="tab" href="#profiles" role="tab" aria-controls="profiles" aria-selected="false">Profiles</a>
-                      </li>
-                    </ul>
-
-                    <div class="tab-content">
-                        <div class="tab-pane active mt-2" id="files" role="tabpanel" aria-labelledby="files-tab"><div id="file-list"></div></div>
-                        <div class="tab-pane mt-2" id="profiles" role="tabpanel" aria-labelledby="profiles-tab">
-                            {% render_profile_form project.pipeline.fa_script project True %}
-                        </div>
+                    <div class="tab-pane active mt-2" id="files" role="tabpanel" aria-labelledby="files-tab">
+                        <div id="file-list"></div>
                     </div>
                 </div>
             </div>
             <div class="col-md-1">
             </div>
             <div class="col-md-4 rounded lighter padding">
-                <h2>Available profiles</h2>
-                <p>Below you will find the available profiles to run FA for. All required files for one profile
-                    need to be uploaded before you can start forced alignment.</p>
-                {% for profile in profiles %}
-                    <h3>Profile #{{ profile.id }}</h3>
-                    <ul>
-                        {% for template in profile.templates %}
-                            <li>{{ template.label }}</li>
+                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                  <li class="nav-item">
+                    <a class="nav-link active" id="profiles-tab" data-toggle="tab" href="#profile-configuration" role="tab" aria-controls="files" aria-selected="true">Profile configuration</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" id="profiles-tab" data-toggle="tab" href="#available-profiles" role="tab" aria-controls="profiles" aria-selected="false">Available profiles</a>
+                  </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane active mt-2" id="profile-configuration" role="tabpanel" aria-labelledby="profile-configuration-tab">
+                        {% render_profile_form project.pipeline.fa_script project True %}
+                        <div class="btn btn-success mt-2 w-100" id="configure-automatically-button" onclick="update_and_callback_no_data('{% url "v1:configure-automatically" project=project script=project.pipeline.fa_script %}', {}, update_update_list, method = 'POST')">Configure file settings automatically</div>
+                        <div class="btn btn-primary mt-2 w-100" id="start-button" onclick="start_project()">Start FA</div>
+                    </div>
+                    <div class="tab-pane mt-2" id="available-profiles" role="tabpanel" aria-labelledby="available-profiles-tab">
+                        <h4>Available profiles</h4>
+                        <p>Below you will find the available profiles to run FA for. All required files for one profile
+                            need to be uploaded before you can start forced alignment.</p>
+                        {% for profile in profiles %}
+                            <h3>Profile #{{ profile.id }}</h3>
                             <ul>
-                                <li>This file must have the .{{ template.extension }} extension</li>
-                                {% if template.unique %}
-                                    <li>This file must be unique</li>
-                                {% endif %}
-                                {% if template.optional %}
-                                    <li>This file is optional</li>
-                                {% endif %}
+                                {% for template in profile.templates %}
+                                    <li>{{ template.label }}</li>
+                                    <ul>
+                                        <li>This file must have the .{{ template.extension }} extension</li>
+                                        {% if template.unique %}
+                                            <li>This file must be unique</li>
+                                        {% endif %}
+                                        {% if template.optional %}
+                                            <li>This file is optional</li>
+                                        {% endif %}
+                                    </ul>
+                                {% endfor %}
                             </ul>
                         {% endfor %}
-                    </ul>
-                {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>

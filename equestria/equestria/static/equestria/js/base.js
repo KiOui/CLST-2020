@@ -51,12 +51,12 @@ function update_and_callback(data_url, data, callback, method = 'POST'/*, args *
     let args = Array.prototype.slice.call(arguments, 4);
     let csrf_token = get_csrf_token();
     let headers = {};
-    if (method === 'DELETE') {
+    if (method === 'DELETE' || method === "PUT") {
         headers = {"X-CSRFToken": csrf_token};
     }
     jQuery(function($) {
         data.csrfmiddlewaretoken = csrf_token;
-        $.ajax({type: method, url: data_url, data, dataType:'json', asynch: true, headers: headers}).done(
+        $.ajax({type: method, url: data_url, data, contentType: 'application/json',  asynch: true, headers: headers}).done(
             function(data) {
                 args.unshift(data);
                 callback.apply(this, args);
@@ -71,7 +71,7 @@ function update_and_callback_no_data(data_url, data, callback, method = 'POST'/*
     let args = Array.prototype.slice.call(arguments, 4);
     let csrf_token = get_csrf_token();
     let headers = {};
-    if (method === 'DELETE') {
+    if (method === 'DELETE' || method === 'PUT') {
         headers = {"X-CSRFToken": csrf_token};
     }
     jQuery(function($) {

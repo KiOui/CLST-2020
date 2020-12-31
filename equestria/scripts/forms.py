@@ -81,7 +81,7 @@ class ParameterForm(forms.Form):
                 for choice in Choice.objects.filter(
                     corresponding_choice_parameter=choice_parameter
                 ):
-                    choices.append((choice.id, choice.value))
+                    choices.append((choice.value, choice.value))
                 self.fields[parameter.name].choices = choices
             elif parameter.type == BaseParameter.TEXT_TYPE:
                 self.fields[parameter.name] = forms.CharField(

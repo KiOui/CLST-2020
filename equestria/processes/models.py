@@ -426,13 +426,84 @@ class FileSetting(models.Model):
     file = models.ForeignKey(File, on_delete=models.CASCADE, null=False, blank=False)
     input_template = models.ForeignKey(InputTemplate, related_name="file_settings", on_delete=models.CASCADE, null=False, blank=False)
 
+    @staticmethod
+    def create_for_input_template(input_template: InputTemplate, project: Project):
+        files_with_extension = project.get_files_with_extension(input_template.extension)
+        if input_template.unique and len(files_with_extension) == 1:
+            return FileSetting.objects.get_or_create(file=files_with_extension[0], input_template=input_template)
+        elif not input_template.unique:
+            return [FileSetting.objects.get_or_create(file=x, input_template=input_template) for x in files_with_extension]
+        return None
+
 
 class ParameterSetting(models.Model):
     """Class for parameter settings."""
 
+    class InvalidValueType(Exception):
+        pass
+
     value = models.CharField(max_length=1024)
     base_parameter = models.ForeignKey(BaseParameter, related_name="parameter_setting", on_delete=models.CASCADE, null=False, blank=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, null=False, blank=False)
+
+    def get_value(self):
+        if self.base_parameter.type == BaseParameter.BOOLEAN_TYPE:
+            return self.value != "0" and self.value != "false" and self.value != "False"
+        elif self.base_parameter.type == BaseParameter.STATIC_TYPE:
+            return self.value
+        elif self.base_parameter.type == BaseParameter.STRING_TYPE:
+            return self.value
+        elif self.base_parameter.type == BaseParameter.CHOICE_TYPE:
+            choice_parameter = self.base_parameter.get_typed_parameter()
+            if choice_parameter is not None:
+                choices = choice_parameter.get_available_choices()
+                for choice in choices:
+                    if choice.value == self.value:
+                        return choice
+                raise ValueError("Choice does not exist for base parameter {} and choice {}.".format(self.base_parameter, self.value))
+            raise ValueError("Choice parameter does not exist for base parameter {}".format(self.base_parameter))
+        elif self.base_parameter.type == BaseParameter.TEXT_TYPE:
+            return self.value
+        elif self.base_parameter.type == BaseParameter.INTEGER_TYPE:
+            return int(self.value)
+        elif self.base_parameter.type == BaseParameter.FLOAT_TYPE:
+            return float(self.value)
+        else:
+            raise TypeError("Type of parameter {} unknown".format(self.base_parameter))
+
+    def has_right_value_type(self):
+        if self.base_parameter.type == BaseParameter.BOOLEAN_TYPE:
+            return True
+        elif self.base_parameter.type == BaseParameter.STATIC_TYPE:
+            return True
+        elif self.base_parameter.type == BaseParameter.STRING_TYPE:
+            return True
+        elif self.base_parameter.type == BaseParameter.CHOICE_TYPE:
+            choice_parameter = self.base_parameter.get_typed_parameter()
+            if choice_parameter is not None:
+                return self.value in [x.value for x in choice_parameter.get_available_choices()]
+        elif self.base_parameter.type == BaseParameter.TEXT_TYPE:
+            return True
+        elif self.base_parameter.type == BaseParameter.INTEGER_TYPE:
+            try:
+                int(self.value)
+                return True
+            except ValueError:
+                return False
+        elif self.base_parameter.type == BaseParameter.FLOAT_TYPE:
+            try:
+                float(self.value)
+                return True
+            except ValueError:
+                return False
+        return False
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if self.has_right_value_type():
+            return super().save(force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields)
+        else:
+            raise ParameterSetting.InvalidValueType("Type validation for {} failed".format(self))
 
     class Meta:
         """Meta class."""

@@ -4,28 +4,21 @@ from scripts.models import Script, Profile, InputTemplate, BaseParameter
 from processes import models
 
 
-class ParameterSettingSerializer(serializers.ModelSerializer):
-    """Serializer for File model."""
-
-    class Meta:
-        """Meta class."""
-
-        model = models.ParameterSetting
-        fields = [
-            "value",
-        ]
-
-
 class ParameterSerializer(serializers.ModelSerializer):
     """Serializer for Parameter model."""
-    parameter_setting = serializers.SerializerMethodField()
+    value = serializers.SerializerMethodField()
 
-    def get_parameter_setting(self, instance):
+    def get_value(self, instance):
         try:
-            parameter_setting = ParameterSetting.objects.get(base_parameter=instance, project=self.context.get('view').kwargs.get('project'))
+            return ParameterSetting.objects.get(base_parameter=instance, project=self.context.get('view').kwargs.get('project')).value
         except ParameterSetting.DoesNotExist:
-            parameter_setting = None
-        return ParameterSettingSerializer(parameter_setting, many=False).data
+            return None
+
+    @property
+    def validated_data(self):
+        print(self.data)
+        print(super().validated_data)
+        return super().validated_data
 
     class Meta:
         """Meta class."""
@@ -33,7 +26,7 @@ class ParameterSerializer(serializers.ModelSerializer):
         model = BaseParameter
         fields = [
             "name",
-            "parameter_setting",
+            "value",
         ]
 
 
@@ -51,10 +44,10 @@ class FileSettingSerializer(serializers.ModelSerializer):
 
 class InputTemplateSettingSerializer(serializers.ModelSerializer):
     """Serializer for input template settings."""
-    file_settings = serializers.SerializerMethodField()
+    files = serializers.SerializerMethodField()
 
-    def get_file_settings(self, instance):
-        return FileSettingSerializer(FileSetting.objects.filter(input_template=instance, file__project=self.context.get('view').kwargs.get('project')), many=True).data
+    def get_files(self, instance):
+        return [x.file.id for x in FileSetting.objects.filter(input_template=instance, file__project=self.context.get('view').kwargs.get('project'))]
 
     class Meta:
         """Meta class."""
@@ -62,13 +55,13 @@ class InputTemplateSettingSerializer(serializers.ModelSerializer):
         model = InputTemplate
         fields = [
             "id",
-            "file_settings",
+            "files",
         ]
 
 
 class ProfileSettingSerializer(serializers.ModelSerializer):
     """Serializer for profile settings."""
-    input_templates = InputTemplateSettingSerializer(many=True, read_only=True)
+    input_templates = InputTemplateSettingSerializer(many=True, read_only=False)
 
     class Meta:
         """Meta class."""
@@ -82,8 +75,8 @@ class ProfileSettingSerializer(serializers.ModelSerializer):
 
 class SettingsSerializer(serializers.ModelSerializer):
     """Serializer for Product model."""
-    profiles = ProfileSettingSerializer(many=True, read_only=True)
-    parameters = ParameterSerializer(many=True, read_only=True)
+    profiles = ProfileSettingSerializer(many=True, read_only=False)
+    parameters = ParameterSerializer(many=True, read_only=False)
 
     class Meta:
         """Meta class."""

@@ -644,6 +644,7 @@ class BaseParameter(Model):
 
         verbose_name_plural = "Parameters"
         verbose_name = "Parameter"
+        unique_together = ("name", "corresponding_script")
 
 
 class BooleanParameter(Model):
@@ -852,6 +853,9 @@ class ChoiceParameter(Model):
         choices = Choice.objects.filter(corresponding_choice_parameter=self)
         for choice in choices:
             choice.delete()
+
+    def get_available_choices(self):
+        return Choice.objects.filter(corresponding_choice_parameter=self)
 
     def set_preset(self, value):
         """

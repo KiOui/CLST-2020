@@ -14,11 +14,16 @@ function set_file_options(files) {
         let options = get_file_select_options(files);
         file_selects[i].innerHTML = "";
         if (!file_selects[i].required) {
-            file_selects[i].appendChild(create_element('option', [], '----------'));
+            let null_option = create_element('option', [], "----------");
+            null_option.value = "null";
+            file_selects[i].appendChild(null_option);
         }
         for (let n = 0; n < options.length; n++) {
             file_selects[i].appendChild(options[n]);
         }
+    }
+    if (typeof(sync_settings) !== undefined) {
+        update_and_callback(SYNC_SETTINGS_URL, {}, sync_settings, method = "GET");
     }
 }
 

@@ -67,6 +67,9 @@ class Project(models.Model):
     def files(self):
         return File.objects.filter(project=self)
 
+    def get_files_with_extension(self, extension):
+        return [x for x in self.files if x.extension == extension]
+
     def save(self, *args, **kwargs):
         """Save project."""
         Path(self.absolute_path).mkdir(parents=True, exist_ok=True)
@@ -348,6 +351,11 @@ class File(models.Model):
     def file_path(self):
         """Get the relative path (relative to the media folder) of the file."""
         return os.path.join(self.project.folder, self.file.name)
+
+    @property
+    def extension(self):
+        _, extension = os.path.splitext(self.filename)
+        return extension[1:]
 
     def save(self, *args, **kwargs):
         """Save method."""
