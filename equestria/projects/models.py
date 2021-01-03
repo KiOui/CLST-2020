@@ -80,90 +80,18 @@ class Project(models.Model):
         File.objects.filter(project=self).delete()
         remove_files_from_directory(self.absolute_path)
 
-    def move_extracted_files(self, extensions):
-        """
-        Move extracted files to the project folder.
-
-        :param extensions: the allowed extensions
-        :return: a list of non-moved files
-        """
-        non_copied = list()
-        if os.path.exists(os.path.join(self.folder, Project.EXTRACT_FOLDER)):
-            for root, _, files in os.walk(
-                os.path.join(self.folder, Project.EXTRACT_FOLDER)
-            ):
-                for file in files:
-                    name, extension = os.path.splitext(file)
-                    if extension[1:] in extensions:
-                        shutil.copy(os.path.join(root, file), self.folder)
-                    else:
-                        non_copied.append(file)
-        return non_copied
+    def get_dictionary_files(self):
+        dictionary_files = []
+        for file in self.files:
+            if file.extension == "dict":
+                dictionary_files.append(file)
+        return dictionary_files
 
     def __str__(self):
         """Convert this object to string."""
         return self.name
 
-    @property
-    def status(self):
-        """
-        GET the status of this project.
-
-        :return: the next step of this project
-        """
-        return self.get_next_step()
-
-    def get_next_step(self):
-        """
-        Get the project status.
-
-        :return: a value in self.TYPES indicating the project status
-        """
-        return self.UPLOADING
-
-    def write_oov_dict_file_contents(self, content, name="default.oov.dict"):
-        """
-        Write content to .oov.dict file in project folder.
-
-        :param content: the content to write to the file
-        :param name: the name of the default file to write to
-        :return: None
-        """
-        path = self.get_oov_dict_file_path()
-        if path is not None:
-            with open(path, "w") as file:
-                file.write(content)
-        else:
-            with open(os.path.join(self.folder, name), "w") as file:
-                file.write(content)
-
-    def get_oov_dict_file_contents(self):
-        """
-        Get the content of the .oov.dict file in the project folder.
-
-        :return: the content of the .oov.dict file, an emtpy string if such a file does not exist
-        """
-        path = self.get_oov_dict_file_path()
-        if path is not None:
-            with open(path, "r") as file:
-                return file.read()
-        else:
-            return ""
-
-    def get_oov_dict_file_path(self):
-        """
-        Get the file path of the .oov.dict file in the folder directory.
-
-        :return: the file path of the .oov.dict file, or None if such a file does not exist
-        """
-        for file_name in os.listdir(self.absolute_path):
-            full_file_path = os.path.join(self.absolute_path, file_name)
-            if os.path.isfile(full_file_path):
-                if file_name.endswith(".oov.dict"):
-                    return full_file_path
-        return None
-
-    def has_non_empty_extension_file(self, extensions, folder=None):
+    def has_extension_file(self, extensions):
         """
         Check if a file ends with some extension.
 
@@ -173,20 +101,9 @@ class Project(models.Model):
         files, but as long as one is non empty we return true. (e.g. we have a.ext and b.ext, a is empty but b is not
         thus we return true).
         """
-        if folder is None:
-            folder = self.absolute_path
-
-        if not os.path.exists(folder) or not os.path.isdir(folder):
-            return False
-        if type(extensions) is not list:
-            raise TypeError("Extensions must be a list type")
-        for file_name in os.listdir(folder):
-            full_file_path = os.path.join(folder, file_name)
-            if os.path.isfile(full_file_path):
-                if file_name.endswith(tuple(extensions)):
-                    if os.stat(full_file_path).st_size != 0:
-                        return True
-
+        for file in self.files:
+            if file.extension in extensions:
+                return True
         return False
 
     def finished_fa(self):
@@ -195,9 +112,7 @@ class Project(models.Model):
 
         :return: True if a .ctm file is present in the project directory, False otherwise
         """
-        return self.has_non_empty_extension_file(
-            ["ctm"], folder=os.path.join(self.folder, Project.OUTPUT_FOLDER),
-        )
+        return self.has_extension_file(["ctm"])
 
     def create_downloadable_archive(self):
         """
@@ -211,74 +126,6 @@ class Project(models.Model):
             self.folder,
             zip_dir(self.folder, os.path.join(self.folder, zip_filename)),
         )
-
-    def can_upload(self):
-        """
-        Check whether files can be uploaded to this project.
-
-        :return: True if files can be uploaded to this project, False otherwise
-        """
-        return True
-
-    def can_start_new_process(self):
-        """
-        Check whether a new process can be started for this project.
-
-        :return: True if there are not running processes for this project, False otherwise
-        """
-        return self.current_process is None
-
-    def start_fa_script(self, profile, **kwargs):
-        """
-        Start the FA script with a given profile.
-
-        :param profile: the profile to start FA with
-        :return: the process with the started script, raises a ValueError if the files in the folder do not match the
-        profile, raises an Exception if a CLAM error occurred
-        """
-        return self.start_script(profile, self.pipeline.fa_script, **kwargs)
-
-    def start_g2p_script(self, profile, **kwargs):
-        """
-        Start the G2P script with a given profile.
-
-        :param profile: the profile to start G2P with
-        :return: the process with the started script, raises a ValueError if the files in the folder do not match the
-        profile, raises an Exception if a CLAM error occurred
-        """
-        return self.start_script(profile, self.pipeline.g2p_script, **kwargs)
-
-    def start_script(self, profile, script, parameter_values=None):
-        """
-        Start a new script and add the process to this project.
-
-        :param parameter_values: parameter values in (key, value) format in a dictionary
-        :param profile: the profile to start the script with
-        :param script: the script to start
-        :return: the process with the started script, raises a ValueError if the files in the folder do not match the
-        profile, raises an Exception if a CLAM error occurred
-        """
-        parameter_values = (
-            dict() if parameter_values is None else parameter_values
-        )
-
-        if not self.can_start_new_process():
-            raise Project.StateException
-        elif profile.script != script:
-            raise Profile.IncorrectProfileException
-        '''
-        self.current_process = Process.objects.create(
-            script=script, folder=self.folder
-        )'''
-        self.save()
-        try:
-            self.current_process.start_safe(
-                profile, parameter_values=parameter_values
-            )
-            return self.current_process
-        except Exception as e:
-            self.cleanup()
-            raise e
 
     def cleanup(self):
         """
@@ -345,7 +192,7 @@ class File(models.Model):
     @property
     def absolute_file_path(self):
         """Get the absolute path to the file."""
-        return os.path.join(self.project.absolute_path, self.file.name)
+        return os.path.join(self.project.absolute_path, self.filename)
 
     @property
     def file_path(self):
@@ -356,6 +203,11 @@ class File(models.Model):
     def extension(self):
         _, extension = os.path.splitext(self.filename)
         return extension[1:]
+
+    @property
+    def content(self):
+        with self.file.open('r') as file:
+            return file.read()
 
     def save(self, *args, **kwargs):
         """Save method."""

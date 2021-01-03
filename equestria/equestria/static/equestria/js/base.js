@@ -11,6 +11,16 @@ function create_element(tag_name, class_list, text) {
     return element;
 }
 
+function create_select(options) {
+    let select = create_element('select', [], '');
+    for (let i = 0; i < options.length; i++) {
+        let option = create_element('option', [], options[i].text);
+        option.value = options[i].value;
+        select.appendChild(option);
+    }
+    return select;
+}
+
 function set_cookie(name,value,days) {
     let expires = "";
     value = encodeURI(value);
@@ -51,12 +61,12 @@ function update_and_callback(data_url, data, callback, method = 'POST'/*, args *
     let args = Array.prototype.slice.call(arguments, 4);
     let csrf_token = get_csrf_token();
     let headers = {};
-    if (method === 'DELETE' || method === "PUT") {
+    if (method === 'DELETE' || method === "PUT" || method === "PATCH") {
         headers = {"X-CSRFToken": csrf_token};
     }
     jQuery(function($) {
         data.csrfmiddlewaretoken = csrf_token;
-        $.ajax({type: method, url: data_url, data, contentType: 'application/json',  asynch: true, headers: headers}).done(
+        $.ajax({type: method, url: data_url, data, dataType: 'json', contentType: 'application/json', asynch: true, headers: headers}).done(
             function(data) {
                 args.unshift(data);
                 callback.apply(this, args);
@@ -83,6 +93,28 @@ function update_and_callback_no_data(data_url, data, callback, method = 'POST'/*
                 console.error("Failed to update");
                 callback.apply(this, args);
             });
+        }
+    )
+}
+
+function send_update_request(data_url, callback, method = 'POST'/*, args */) {
+    let args = Array.prototype.slice.call(arguments, 3);
+    let csrf_token = get_csrf_token();
+    let headers = {};
+    if (method === 'DELETE' || method === 'PUT') {
+        headers = {"X-CSRFToken": csrf_token};
+    }
+    jQuery(function($) {
+        let data = {};
+        data.csrfmiddlewaretoken = csrf_token;
+        $.ajax({type: method, url: data_url, data, asynch: true, headers: headers, success:
+            function(data) {
+                args.unshift(data);
+                callback.apply(this, args);
+            }, error: function(xhr, status, error) {
+                args.unshift(xhr.responseJSON);
+                callback.apply(this, args);
+            }});
         }
     )
 }

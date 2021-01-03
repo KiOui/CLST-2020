@@ -102,14 +102,14 @@ def handle_parameter_changing(parameters: [ParameterSettingParser], project, scr
             if ParameterSetting.objects.filter(project=project, base_parameter=base_parameter_obj).exists():
                 try:
                     parameter_setting = ParameterSetting.objects.get(project=project, base_parameter=base_parameter_obj)
-                    parameter_setting.value = parameter.value
+                    parameter_setting._value = parameter.value
                     parameter_setting.save()
                     parameters_altered.append(parameter_setting)
                 except ParameterSetting.InvalidValueType:
                     pass
             else:
                 try:
-                    parameters_altered.append(ParameterSetting.objects.create(project=project, base_parameter=base_parameter_obj, value=parameter.value))
+                    parameters_altered.append(ParameterSetting.objects.create(project=project, base_parameter=base_parameter_obj, _value=parameter.value))
                 except ParameterSetting.InvalidValueType:
                     pass
         except BaseParameter.DoesNotExist:
@@ -143,3 +143,32 @@ def autoconfigure_file_settings(project, script):
     FileSetting.objects.filter(file__project=project, input_template__corresponding_profile__script=script).delete()
     for input_template in InputTemplate.objects.filter(corresponding_profile__script=script):
         FileSetting.create_for_input_template(input_template, project)
+
+
+def check_process_ready(project, script, profile):
+    errors = []
+    input_templates = InputTemplate.objects.filter(corresponding_profile=profile)
+    for template in input_templates:
+        file_settings_amount = FileSetting.objects.filter(file__project=project, input_template=template).count()
+        if template.optional and template.unique and file_settings_amount > 1:
+            errors.append("Template '{}' requires a unique file but multiple were specified.".format(template.label))
+        elif not template.optional and template.unique and file_settings_amount != 1:
+            errors.append("Template '{}' requires a unique file but {} were specified.".format(template.label, file_settings_amount))
+        elif not template.optional and not template.unique and file_settings_amount < 1:
+            errors.append("Template '{}' requires a file but none were specified".format(template.label))
+
+    for parameter in script.variable_parameters:
+        try:
+            ParameterSetting.objects.get(project=project, base_parameter=parameter)
+        except ParameterSetting.DoesNotExist:
+            errors.append("Parameter '{}' requires a value but none is given.".format(parameter))
+    return errors
+
+
+def find_ready_profiles(project, script):
+    profiles_ready = []
+    for profile in Profile.objects.filter(script=script):
+        errors = check_process_ready(project, script, profile)
+        if len(errors) == 0:
+            profiles_ready.append(profile)
+    return profiles_ready

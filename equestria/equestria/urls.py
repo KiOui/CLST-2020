@@ -16,5 +16,9 @@ urlpatterns = [
         "accounts/",
         include(("accounts.urls", "accounts"), namespace="accounts"),
     ),
+    path(
+        "processes/",
+        include(("processes.urls", "processes"), namespace="processes"),
+    ),
     path("api/", include("equestria.api.urls")),
 ]

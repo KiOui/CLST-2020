@@ -1,0 +1,37 @@
+{% extends 'equestria/base.html' %}
+{% load static %}
+
+{% block title %}
+    Equestria: Check dictionary
+{% endblock %}
+
+{% block header %}
+    {% include 'equestria/header.html' with active="cd" %}
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="col rounded lighter padding">
+            <h1>Check dictionary</h1>
+            <div id="check-dictionary-container">
+                <label for="check-dictionary-select">Dictionary file</label>
+                <select id="check-dictionary-select">
+                    {% for file in dictionary_files %}
+                        <option value="{{ file.id }}">{{ file.filename }}</option>
+                    {% endfor %}
+                </select>
+                {% for file in dictionary_files %}
+                    <textarea onkeyup="set_timeout()" id="text-area-{{ file.id }}">{{ file.content }}</textarea>
+                {% endfor %}
+            </div>
+            <a class="btn btn-primary btn-style" href="{% url 'projects:fa_overview' project=project %}">Continue to FA overview</a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'projects/js/update-dictionary.js' %}"></script>
+    <script>
+        let project_id = '{{ project.id }}';
+    </script>
+{% endblock %}

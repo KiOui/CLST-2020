@@ -1,0 +1,48 @@
+{% extends 'equestria/base.html' %}
+{% load static configure_process %}
+
+{% block title %}
+    Equestria: {{ script_type }} Processes
+{% endblock %}
+
+{% block header %}
+    {% if script_type == "FA" %}
+        {% include 'equestria/header.html' with active="fa" %}
+    {% else %}
+        {% include 'equestria/header.html' with active="g2p" %}
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="row">
+            <div class="col-md-7">
+                <h1>{{ script_type }} processes for this project</h1>
+                <div id="process-list">
+                </div>
+            </div>
+            <div class="col-md-1">
+            </div>
+            <div class="col-md-4 rounded lighter padding">
+                <h2>Create a new {{ script_type }} process</h2>
+                {% if script_type == "FA" %}
+                    {% render_profile_form project.pipeline.fa_script project True %}
+                {% else %}
+                    {% render_profile_form project.pipeline.g2p_script project True %}
+                {% endif %}
+                <div class="btn btn-success mt-2 w-100" id="configure-automatically-button" onclick="update_and_callback_no_data(
+                    '{% if script_type == "FA" %}{% url "v1:configure-automatically" project=project script=project.pipeline.fa_script %}{% else %}{% url "v1:configure-automatically" project=project script=project.pipeline.g2p_script %}{% endif %}', {}, update_update_list, method = 'POST')">Configure file settings automatically</div>
+                <div class="btn btn-primary mt-2 w-100" id="start-button" onclick="start_process()">Start {{ script_type }}</div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'processes/js/process-list.js' %}"></script>
+    <script>
+        let project_id = '{{ project.id }}';
+        let script_id = '{% if script_type == "FA" %}{{ project.pipeline.fa_script.id }}{% else %}{{ project.pipeline.g2p_script.id }}{% endif %}';
+        add_update_list(update_and_callback, ["{% url 'v1:process-list' project=project %}", {}, update_process_list, 'GET', '{{ script_type }}']);
+    </script>
+{% endblock %}

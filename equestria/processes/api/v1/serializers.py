@@ -1,7 +1,53 @@
-from processes.models import FileSetting, ParameterSetting
+from processes.models import FileSetting, ParameterSetting, Process, LogMessage
 from rest_framework import serializers
 from scripts.models import Script, Profile, InputTemplate, BaseParameter
 from processes import models
+
+
+class LogMessageSerializer(serializers.ModelSerializer):
+    """Serializer for LogMessage model."""
+
+    class Meta:
+        """Meta class."""
+
+        model = LogMessage
+        fields = [
+            "index",
+            "message",
+            "time",
+        ]
+
+
+class ProcessSerializer(serializers.ModelSerializer):
+    """Serializer for Process model."""
+
+    log_messages = serializers.SerializerMethodField()
+    status_string = serializers.SerializerMethodField()
+    script_type = serializers.SerializerMethodField()
+
+    def get_log_messages(self, instance):
+        return LogMessageSerializer(instance.log_messages, many=True).data
+
+    def get_script_type(self, instance):
+        return "FA" if instance.script == instance.project.pipeline.fa_script else "G2P"
+
+    def get_status_string(self, instance):
+        return instance.get_status_string()
+
+    class Meta:
+        """Meta class."""
+
+        model = Process
+        fields = [
+            "pk",
+            "script",
+            "script_type",
+            "project",
+            "status",
+            "status_string",
+            "log_messages",
+            "created",
+        ]
 
 
 class ParameterSerializer(serializers.ModelSerializer):
@@ -10,15 +56,9 @@ class ParameterSerializer(serializers.ModelSerializer):
 
     def get_value(self, instance):
         try:
-            return ParameterSetting.objects.get(base_parameter=instance, project=self.context.get('view').kwargs.get('project')).value
+            return ParameterSetting.objects.get(base_parameter=instance, project=self.context.get('view').kwargs.get('project')).raw_value
         except ParameterSetting.DoesNotExist:
             return None
-
-    @property
-    def validated_data(self):
-        print(self.data)
-        print(super().validated_data)
-        return super().validated_data
 
     class Meta:
         """Meta class."""

@@ -141,3 +141,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
 DOWNLOAD_DIR = os.path.join(MEDIA_ROOT, "outputs")
 USER_DATA_FOLDER = "userdata"
+PROCESS_DATA_FOLDER = "processes"

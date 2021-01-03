@@ -5,8 +5,8 @@ from django.http import HttpResponseRedirect
 from scripts import models
 from .forms import ChoiceParameterAdminForm
 from nested_inline.admin import NestedStackedInline, NestedModelAdmin
-from django import forms
 from django.contrib import messages
+from scripts.forms import OutputTemplateAdminForm
 
 
 class BooleanParameterInline(NestedStackedInline):
@@ -192,3 +192,20 @@ class InputTemplateAdmin(admin.ModelAdmin):
         "unique",
     ]
     list_filter = ["corresponding_profile", "extension"]
+
+
+@admin.register(models.OutputTemplate)
+class OutputTemplateAdmin(admin.ModelAdmin):
+    """Model admin for OutputTemplates."""
+
+    form = OutputTemplateAdminForm
+
+    list_display = [
+        "name",
+        "script",
+        "regex",
+    ]
+
+    list_filter = [
+        "script"
+    ]

@@ -30,9 +30,7 @@ class ProjectDetailView(LoginRequiredMixin, TemplateView):
         if not request.user.has_perm("access_project", project):
             raise PermissionDenied
 
-        context = {"project": project, "profiles": Profile.objects.filter(script=project.pipeline.fa_script)}
-        if project.can_upload():
-            context["upload_form"] = UploadForm()
+        context = {"project": project, "profiles": Profile.objects.filter(script=project.pipeline.fa_script), "upload_form": UploadForm()}
         return render(request, self.template_name, context)
 
 
@@ -79,7 +77,71 @@ class ProjectOverview(LoginRequiredMixin, TemplateView):
                 name=project_name, pipeline=pipeline, user=request.user
             )
             assign_perm("access_project", request.user, project)
-            return redirect("upload:upload_project", project=project)
+            return redirect("projects:project_detail", project=project)
         return render(
             request, self.template_name, {"form": form, "projects": projects},
         )
+
+
+class CheckDictionaryScreen(LoginRequiredMixin, TemplateView):
+    """Check dictionary page."""
+
+    login_url = "/accounts/login/"
+
+    template_name = "projects/check-dictionary-screen.html"
+
+    def get(self, request, **kwargs):
+        """
+        GET request for the check dictionary page.
+
+        :param request: the request
+        :param kwargs: keyword arguments
+        :return: a render of the check dictionary page
+        """
+        project = kwargs.get("project")
+
+        if not request.user.has_perm("access_project", project):
+            raise PermissionDenied
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "project": project,
+                "dictionary_files": project.get_dictionary_files()
+            },
+        )
+
+
+class FAOverviewView(LoginRequiredMixin, TemplateView):
+    """After the script is done, this screen shows the results."""
+
+    login_url = "/accounts/login/"
+
+    template_name = "projects/fa-overviewpage.html"
+
+    def get(self, request, **kwargs):
+        """
+        GET request for FA overview page.
+
+        :param request: the request
+        :param kwargs: keyword arguments
+        :return: a render of the FA overview page
+        """
+        project = kwargs.get("project")
+
+        if not request.user == project.user:
+            raise PermissionDenied
+
+        if project.finished_fa():
+            return render(
+                request,
+                self.template_name,
+                {"success": True, "project": project},
+            )
+        else:
+            return render(
+                request,
+                self.template_name,
+                {"success": False, "project": project},
+            )

@@ -1,7 +1,11 @@
 """Module to define forms related to the scripts app."""
+import re
+
 from django import forms
 from django.contrib.auth import get_user_model
-from .models import Profile, BaseParameter
+from django.core.exceptions import ValidationError
+
+from .models import Profile, BaseParameter, OutputTemplate
 from .models import ChoiceParameter, Choice
 
 User = get_user_model()
@@ -116,3 +120,21 @@ class ChoiceParameterAdminForm(forms.ModelForm):
             self.fields["value"].queryset = Choice.objects.filter(
                 corresponding_choice_parameter=self.instance
             )
+
+
+class OutputTemplateAdminForm(forms.ModelForm):
+    """Admin form for OutputTemplate."""
+
+    def clean_regex(self):
+        regex = self.cleaned_data.get("regex")
+        try:
+            re.compile(regex)
+            return regex
+        except re.error as e:
+            raise ValidationError("The regex is incorrect and returned the following error: {}".format(e))
+
+    class Meta:
+        """Meta class."""
+
+        model = OutputTemplate
+        fields = "__all__"

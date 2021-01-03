@@ -6,8 +6,8 @@ from processes import models
 class ProcessAdmin(admin.ModelAdmin):
     """Model admin for Processes."""
 
-    list_display = ["folder", "script", "status"]
-    list_filter = ["status", "script"]
+    list_display = ["id", "project", "script", "status"]
+    list_filter = ["status", "script", "project"]
 
 
 @admin.register(models.FileSetting)

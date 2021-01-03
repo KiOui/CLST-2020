@@ -6,6 +6,7 @@ from projects.api.v1.views import (
     ProjectRetrieveDestroyView,
     project_clear_files,
     download_project_file,
+    dictionary_get_update,
 )
 from projects.converters import ProjectConverter
 
@@ -38,5 +39,10 @@ urlpatterns = [
         "<project:project>/files/<int:pk>/download/",
         download_project_file,
         name="project-file-download",
+    ),
+    path(
+        "<project:project>/dictionary",
+        dictionary_get_update,
+        name="dictionary-get-update",
     )
 ]

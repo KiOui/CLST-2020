@@ -43,3 +43,6 @@ if not os.path.exists(DOWNLOAD_DIR):
 
 if not os.path.exists(USER_DATA_FOLDER):
     os.makedirs(USER_DATA_FOLDER)
+
+if not os.path.exists(PROCESS_DATA_FOLDER):
+    os.makedirs(PROCESS_DATA_FOLDER)

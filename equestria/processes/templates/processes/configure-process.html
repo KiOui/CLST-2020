@@ -40,6 +40,6 @@
         add_update_list(update_and_callback,
             ["{% url 'v1:project-file-listcreate' project=project %}", {}, set_file_options, method = "GET"], manual = true
         );
-        let SYNC_SETTINGS_URL = '{% url 'v1:script-settings' project=project pk=project.pipeline.fa_script.pk %}';
+        let SYNC_SETTINGS_URL = '{% url 'v1:script-settings' project=project pk=script.pk %}';
     </script>
 {% endif %}

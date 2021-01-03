@@ -180,11 +180,24 @@ function commence_update() {
 
 function sync_with_server() {
     clearTimeout(update_timer);
-    update_timer = setTimeout(commence_update, 1000);
+    update_timer = setTimeout(commence_update, 500);
 }
 
-function start_project() {
-    // TODO
+function start_process() {
+    let selected_profile = document.getElementById('profile-selector').value;
+    send_update_request(`/api/v1/processes/${project_id}/${script_id}/start/${selected_profile}`, callback_start_process, 'POST');
+}
+
+function callback_start_process(data) {
+    if (data.errors.length > 0) {
+        let error_msg = "The following error(s) occurred while starting the process: \n";
+        for (let i = 0; i < data.errors.length; i++) {
+            error_msg.concat(`${data.errors[i]}\n`);
+        }
+    }
+    else {
+        window.location.href = data.redirect;
+    }
 }
 
 $(document).ready(function() {

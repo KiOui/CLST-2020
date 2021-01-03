@@ -1,9 +1,10 @@
 from django.http import FileResponse
 from projects.api.v1.permissions import IsOwner
 from projects.models import Project, File
+from projects.services import get_dictionary_files_with_content, update_dictionary_data
 from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import api_view
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, MethodNotAllowed, ValidationError
 from rest_framework.generics import (
     ListAPIView,
     DestroyAPIView,
@@ -109,5 +110,26 @@ def download_project_file(request, **kwargs):
         response['Content-Disposition'] = 'attachment; filename="%s"' % file.filename
 
         return response
+    else:
+        raise PermissionDenied
+
+
+@api_view(["GET", "PATCH"])
+def dictionary_get_update(request, **kwargs):
+    """Get or update the dictionary file(s)."""
+    project = kwargs.get("project")
+    if request.user.is_authenticated and request.user == project.user:
+        if request.method == "GET":
+            dictionary_files_with_content = get_dictionary_files_with_content(project)
+            return Response(status=status.HTTP_200_OK, data={"files": dictionary_files_with_content})
+        elif request.method == "PATCH":
+            if "files" in request.data and type(request.data["files"]) == list:
+                update_dictionary_data(project, request.data["files"])
+                dictionary_files_with_content = get_dictionary_files_with_content(project)
+                return Response(status=status.HTTP_200_OK, data={"files": dictionary_files_with_content})
+            else:
+                raise ValidationError(detail="A list of dictionaries is required.")
+        else:
+            raise MethodNotAllowed(method=request.method)
     else:
         raise PermissionDenied

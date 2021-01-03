@@ -1,4 +1,6 @@
 """Module to define db models related to the upload app."""
+import re
+import secrets
 import shutil
 
 from django.core.exceptions import ValidationError
@@ -35,6 +37,19 @@ class Script(Model):
     username = CharField(max_length=200, blank=True)
     password = CharField(max_length=200, blank=True)
 
+    @staticmethod
+    def get_random_clam_id():
+        """
+        Get a random 32 bit string.
+
+        :return: a random 32 bit string
+        """
+        return secrets.token_hex(32)
+
+    @property
+    def output_templates(self):
+        return OutputTemplate.objects.filter(script=self)
+
     def refresh(self):
         """
         Save function to load profile data from CLAM.
@@ -42,7 +57,7 @@ class Script(Model):
         :return: super(Script, self).save()
         """
         # First contact CLAM to get the profile data
-        random_token = Process.get_random_clam_id()
+        random_token = Script.get_random_clam_id()
         try:
             clamclient = self.get_clam_server()
             clamclient.create(random_token)
@@ -280,10 +295,6 @@ class Script(Model):
                 valid_profiles.append(p)
         return valid_profiles
 
-    @property
-    def profiles(self):
-        return Profile.objects.filter(script=self)
-
     class Meta:
         """
         Display configuration for admin pane.
@@ -493,6 +504,34 @@ class InputTemplate(Model):
         verbose_name_plural = "Input templates"
 
 
+class OutputTemplate(Model):
+
+    name = CharField(max_length=1024, null=False, blank=False)
+    script = ForeignKey(Script, on_delete=CASCADE, null=False, blank=False)
+    regex = CharField(max_length=1024, null=False, blank=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._regex = re.compile(self.regex)
+
+    @staticmethod
+    def match_any(filename, output_templates):
+        for output_template in output_templates:
+            if output_template.match(filename):
+                return True
+        return False
+
+    @staticmethod
+    def match_all(filename, output_templates):
+        for output_template in output_templates:
+            if not output_template.match(filename):
+                return False
+        return True
+
+    def match(self, filename):
+        return self._regex.match(filename)
+
+
 class BaseParameter(Model):
     """Base model for a parameter object."""
 
@@ -624,6 +663,8 @@ class BaseParameter(Model):
         returned, None is returned if the type of the value does not match the type of the parameter
         """
         typed_parameter = self.get_typed_parameter()
+        if typed_parameter is None:
+            raise BaseParameter.ParameterException("Typed parameter not found.")
         return typed_parameter.get_corresponding_value(value)
 
     def __str__(self):

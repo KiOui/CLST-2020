@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import secrets
+import shutil
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -10,8 +11,8 @@ import pytz
 from django.conf import settings
 from django.db import models
 from projects.models import File, Project
-from scripts.models import Script, InputTemplate, BaseParameter, Profile
-from scripts.tasks import update_script
+from scripts.models import Script, InputTemplate, BaseParameter, Profile, OutputTemplate
+from processes.tasks import update_script
 
 
 class Process(models.Model):
@@ -46,9 +47,11 @@ class Process(models.Model):
     )
 
     script = models.ForeignKey(Script, on_delete=models.CASCADE, blank=False, null=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, blank=False, null=False)
     clam_id = models.CharField(max_length=256, null=True, default=None)
     status = models.IntegerField(choices=STATUS, default=0)
     folder = models.FilePathField(allow_folders=True, allow_files=False)
+    created = models.DateTimeField(auto_now_add=True, null=False, blank=False)
 
     def __str__(self):
         """Convert this object to string."""
@@ -105,15 +108,6 @@ class Process(models.Model):
             )
         except ValueError:
             return None
-
-    @property
-    def output_folder(self):
-        """
-        Get an absolute path to the output folder.
-
-        :return: the absolute path to the output folder
-        """
-        return os.path.join(self.folder, projects.models.Project.OUTPUT_FOLDER)
 
     def set_status(self, status):
         """
@@ -190,9 +184,7 @@ class Process(models.Model):
                 raise BaseParameter.ParameterException(
                     "Not all parameters are satisfied"
                 )
-
             self.upload_input_templates(templates)
-
             clamclient.startsafe(self.clam_id, **merged_parameters)
             self.set_status(Process.STATUS_RUNNING)
             update_script(self.pk)
@@ -210,23 +202,9 @@ class Process(models.Model):
         """
         clamclient = self.script.get_clam_server()
         for template in templates:
-            files = template.is_valid_for(self.folder)
-            if not files and not template.optional:
-                raise ValueError(
-                    "No file specified for template {}".format(template)
-                )
-            if files:
-                if len(files) > 1 and template.unique:
-                    raise ValueError(
-                        "More than one file specified for unique template {}".format(
-                            template
-                        )
-                    )
-                for file in files:
-                    full_file_path = os.path.join(self.folder, file)
-                    clamclient.addinputfile(
-                        self.clam_id, template.template_id, full_file_path
-                    )
+            file_settings = FileSetting.objects.filter(input_template=template, file__project=self.project)
+            for file_setting in file_settings:
+                clamclient.addinputfile(self.clam_id, template.template_id, file_setting.file.absolute_file_path)
 
     def cleanup(self, status=STATUS_CREATED):
         """
@@ -266,20 +244,16 @@ class Process(models.Model):
         else:
             return False
 
-    def download_and_delete(self, next_script=None):
+    def download_and_cleanup(self):
         """
         Download all files from a process, decompress them and delete the project from CLAM.
 
         :return: True if downloading the files and extracting them succeeded, False otherwise
         """
-        if (
-            self.status == Process.STATUS_WAITING
-            or self.status == Process.STATUS_ERROR_DOWNLOAD
-        ):
+        if self.status == Process.STATUS_WAITING or self.status == Process.STATUS_ERROR_DOWNLOAD:
             self.set_status(Process.STATUS_DOWNLOADING)
             if self.download_archive_and_decompress():
-                if next_script is not None:
-                    self.move_downloaded_output_files(next_script)
+                self.move_downloaded_output_files()
                 self.cleanup(status=Process.STATUS_FINISHED)
                 return True
             else:
@@ -288,18 +262,17 @@ class Process(models.Model):
         else:
             return False
 
-    def move_downloaded_output_files(self, script):
+    def move_downloaded_output_files(self, files=None):
         """
         Move downloaded output files that are needed for the next script to the main directory.
 
-        :param script: the next script
         :return: None
         """
-        templates = InputTemplate.objects.filter(
-            corresponding_profile__script=script
-        )
-        for template in templates:
-            template.move_corresponding_files(self.output_folder, self.folder)
+        for file in self.file_list:
+            if (files is None and OutputTemplate.match_any(file, self.script.output_templates)) or (files is not None and file in files):
+                file_obj, created = File.objects.get_or_create(file=os.path.join(self.project.folder, file), project=self.project)
+                file_obj.save()
+                shutil.copy(os.path.join(self.absolute_process_folder, file), os.path.join(self.project.absolute_path, file_obj.absolute_file_path))
 
     def download_archive_and_decompress(self):
         """
@@ -309,29 +282,24 @@ class Process(models.Model):
         """
         try:
             clamclient = self.script.get_clam_server()
-            if not os.path.exists(self.output_folder):
-                os.makedirs(self.output_folder)
-            downloaded_archive = os.path.join(
-                self.output_folder, str(self.clam_id) + ".{}".format("zip")
-            )
-            clamclient.downloadarchive(self.clam_id, downloaded_archive, "zip")
-            with zipfile.ZipFile(downloaded_archive, "r") as zip_ref:
+            os.makedirs(self.absolute_process_folder, exist_ok=True)
+            clamclient.downloadarchive(self.clam_id, self.absolute_output_archive_path, "zip")
+            with zipfile.ZipFile(self.absolute_output_archive_path, "r") as zip_ref:
                 zip_ref.extractall(
-                    os.path.join(
-                        self.folder, Project.OUTPUT_FOLDER
-                    )
+                    self.absolute_process_folder
                 )
-            os.remove(downloaded_archive)
+            os.remove(self.absolute_output_archive_path)
             return True
         except Exception as e:
-            print(
+            logging.error(
                 "An error occurred while downloading and decompressing files from CLAM. Error: {}".format(
                     e
                 )
             )
             return False
 
-    def is_finished(self):
+    @property
+    def finished(self):
         """
         Check if this process is finished.
 
@@ -339,13 +307,25 @@ class Process(models.Model):
         """
         return self.status == Process.STATUS_FINISHED
 
-    def get_status_messages(self):
+    @property
+    def log_messages(self):
         """
         Get the status messages of this process.
 
         :return: the status messages in a QuerySet
         """
-        return LogMessage.objects.filter(process=self)
+        return LogMessage.objects.filter(process=self).order_by("index")
+
+    @property
+    def absolute_process_folder(self):
+        return os.path.join(
+            os.path.join(settings.MEDIA_ROOT, settings.PROCESS_DATA_FOLDER),
+            str(self.id),
+        )
+
+    @property
+    def absolute_output_archive_path(self):
+        return os.path.join(self.absolute_process_folder, "output-archive.zip")
 
     def get_output_file_name(self, extension="zip"):
         """
@@ -375,30 +355,14 @@ class Process(models.Model):
             return "Done"
         elif self.status == Process.STATUS_ERROR:
             return "An error occurred"
+        elif self.status == Process.STATUS_ERROR_DOWNLOAD:
+            return "Error while downloading files from CLAM"
         else:
             return "Unknown"
 
-    def get_status(self):
-        """
-        Get the status of this project.
-
-        :return: the status of the project
-        """
-        return self.status
-
-    def get_valid_profiles(self):
-        """
-        Get the profiles for which the current files meet the requirements.
-
-        :return:
-        """
-        profiles = Profile.objects.filter(script=self.script)
-        valid_profiles = []
-
-        for p in profiles:
-            if p.is_valid(self.folder):
-                valid_profiles.append(p)
-        return valid_profiles
+    @property
+    def file_list(self):
+        return [x for x in os.listdir(self.absolute_process_folder) if os.path.isfile(os.path.join(self.absolute_process_folder, x))]
 
     class Meta:
         """
@@ -442,32 +406,37 @@ class ParameterSetting(models.Model):
     class InvalidValueType(Exception):
         pass
 
-    value = models.CharField(max_length=1024)
+    _value = models.CharField(max_length=1024)
     base_parameter = models.ForeignKey(BaseParameter, related_name="parameter_setting", on_delete=models.CASCADE, null=False, blank=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, null=False, blank=False)
 
-    def get_value(self):
+    @property
+    def raw_value(self):
+        return self._value
+
+    @property
+    def value(self):
         if self.base_parameter.type == BaseParameter.BOOLEAN_TYPE:
-            return self.value != "0" and self.value != "false" and self.value != "False"
+            return self._value != "0" and self._value != "false" and self._value != "False"
         elif self.base_parameter.type == BaseParameter.STATIC_TYPE:
-            return self.value
+            return self._value
         elif self.base_parameter.type == BaseParameter.STRING_TYPE:
-            return self.value
+            return self._value
         elif self.base_parameter.type == BaseParameter.CHOICE_TYPE:
             choice_parameter = self.base_parameter.get_typed_parameter()
             if choice_parameter is not None:
                 choices = choice_parameter.get_available_choices()
                 for choice in choices:
-                    if choice.value == self.value:
+                    if choice.value == self._value:
                         return choice
-                raise ValueError("Choice does not exist for base parameter {} and choice {}.".format(self.base_parameter, self.value))
+                raise ValueError("Choice does not exist for base parameter {} and choice {}.".format(self.base_parameter, self._value))
             raise ValueError("Choice parameter does not exist for base parameter {}".format(self.base_parameter))
         elif self.base_parameter.type == BaseParameter.TEXT_TYPE:
-            return self.value
+            return self._value
         elif self.base_parameter.type == BaseParameter.INTEGER_TYPE:
-            return int(self.value)
+            return int(self._value)
         elif self.base_parameter.type == BaseParameter.FLOAT_TYPE:
-            return float(self.value)
+            return float(self._value)
         else:
             raise TypeError("Type of parameter {} unknown".format(self.base_parameter))
 
@@ -481,18 +450,18 @@ class ParameterSetting(models.Model):
         elif self.base_parameter.type == BaseParameter.CHOICE_TYPE:
             choice_parameter = self.base_parameter.get_typed_parameter()
             if choice_parameter is not None:
-                return self.value in [x.value for x in choice_parameter.get_available_choices()]
+                return self._value in [x.value for x in choice_parameter.get_available_choices()]
         elif self.base_parameter.type == BaseParameter.TEXT_TYPE:
             return True
         elif self.base_parameter.type == BaseParameter.INTEGER_TYPE:
             try:
-                int(self.value)
+                int(self._value)
                 return True
             except ValueError:
                 return False
         elif self.base_parameter.type == BaseParameter.FLOAT_TYPE:
             try:
-                float(self.value)
+                float(self._value)
                 return True
             except ValueError:
                 return False

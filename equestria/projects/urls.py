@@ -10,4 +10,10 @@ urlpatterns = [
     path(
         "<project:project>", ProjectDetailView.as_view(), name="project_detail"
     ),
+    path(
+        "<project:project>/check-dictionary",
+        CheckDictionaryScreen.as_view(),
+        name="cd_screen",
+    ),
+    path("fa/<project:project>", FAOverviewView.as_view(), name="fa_overview",),
 ]

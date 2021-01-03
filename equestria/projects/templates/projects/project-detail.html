@@ -7,7 +7,6 @@
 
 {% block header %}
     {% include 'equestria/header.html' with active="upload" %}
-
 {% endblock %}
 
 {% block body %}
@@ -72,7 +71,7 @@
                     <div class="tab-pane active mt-2" id="profile-configuration" role="tabpanel" aria-labelledby="profile-configuration-tab">
                         {% render_profile_form project.pipeline.fa_script project True %}
                         <div class="btn btn-success mt-2 w-100" id="configure-automatically-button" onclick="update_and_callback_no_data('{% url "v1:configure-automatically" project=project script=project.pipeline.fa_script %}', {}, update_update_list, method = 'POST')">Configure file settings automatically</div>
-                        <div class="btn btn-primary mt-2 w-100" id="start-button" onclick="start_project()">Start FA</div>
+                        <div class="btn btn-primary mt-2 w-100" id="start-button" onclick="start_process()">Start FA</div>
                     </div>
                     <div class="tab-pane mt-2" id="available-profiles" role="tabpanel" aria-labelledby="available-profiles-tab">
                         <h4>Available profiles</h4>
@@ -105,6 +104,7 @@
 {% block scripts %}
     <script>
         let project_id = {{ project.id }};
+        let script_id = {{ project.pipeline.fa_script.id }};
     </script>
     <script src="{% static 'projects/js/jquery-file-upload/vendor/jquery.ui.widget.js' %}"></script>
     <script src="{% static 'projects/js/jquery-file-upload/jquery.iframe-transport.js' %}"></script>
