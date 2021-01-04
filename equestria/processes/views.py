@@ -31,11 +31,14 @@ class ProcessDetailView(LoginRequiredMixin, TemplateView):
             raise PermissionDenied
 
         return render(
-            request, self.template_name, {"process": process, "project": process.project},
+            request,
+            self.template_name,
+            {"process": process, "project": process.project},
         )
 
 
 class FAProcessOverviewView(LoginRequiredMixin, TemplateView):
+    """Overview view for FA processes."""
 
     login_url = "/accounts/login/"
 
@@ -50,10 +53,15 @@ class FAProcessOverviewView(LoginRequiredMixin, TemplateView):
         :return: a render of the process overview page
         """
         project = kwargs.get("project")
-        return render(request, self.template_name, {"project": project, "script_type": "FA"})
+        return render(
+            request,
+            self.template_name,
+            {"project": project, "script_type": "FA"},
+        )
 
 
 class G2PProcessOverviewView(LoginRequiredMixin, TemplateView):
+    """Overview view for G2P processes."""
 
     login_url = "/accounts/login/"
 
@@ -68,4 +76,8 @@ class G2PProcessOverviewView(LoginRequiredMixin, TemplateView):
         :return: a render of the process overview page
         """
         project = kwargs.get("project")
-        return render(request, self.template_name, {"project": project, "script_type": "G2P"})
+        return render(
+            request,
+            self.template_name,
+            {"project": project, "script_type": "G2P"},
+        )

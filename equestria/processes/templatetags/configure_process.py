@@ -6,7 +6,6 @@ register = template.Library()
 @register.inclusion_tag("processes/configure-process.html", takes_context=False)
 def render_profile_form(script, project, refresh_on_file_change=False):
     """Render configure process screen."""
-
     return {
         "script": script,
         "project": project,

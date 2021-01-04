@@ -40,6 +40,7 @@ class InputTemplateSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     """Serializer for Product model."""
+
     input_templates = InputTemplateSerializer(many=True, read_only=True)
 
     class Meta:

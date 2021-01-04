@@ -1,5 +1,6 @@
 from django.contrib import admin
 from processes import models
+from processes.forms import FilePresetAdminForm
 
 
 @admin.register(models.Process)
@@ -22,3 +23,12 @@ class ParameterSettingsAdmin(admin.ModelAdmin):
     """Model admin for Parameter settings."""
 
     list_display = ["value", "base_parameter"]
+
+
+@admin.register(models.FilePreset)
+class FilePresetAdmin(admin.ModelAdmin):
+    """Model admin for File presets."""
+
+    form = FilePresetAdminForm
+
+    list_display = ["name", "input_template", "regex"]

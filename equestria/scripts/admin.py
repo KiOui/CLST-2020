@@ -206,6 +206,4 @@ class OutputTemplateAdmin(admin.ModelAdmin):
         "regex",
     ]
 
-    list_filter = [
-        "script"
-    ]
+    list_filter = ["script"]

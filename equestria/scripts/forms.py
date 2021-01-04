@@ -5,54 +5,10 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
-from .models import Profile, BaseParameter, OutputTemplate
+from .models import BaseParameter, OutputTemplate
 from .models import ChoiceParameter, Choice
 
 User = get_user_model()
-
-
-class ProfileSelectForm(forms.Form):
-    """Form for running a profile."""
-
-    profile = forms.ChoiceField(choices=[])
-
-    def __init__(self, *args, **kwargs):
-        """
-        Initialise method for ProfileSelectForm.
-
-        :param args: argument
-        :param kwargs: keyword arguments containing a scripts variable with Script objects
-        """
-        profiles = kwargs.pop("profiles", None)
-        super(ProfileSelectForm, self).__init__(*args, **kwargs)
-        choices = []
-        if profiles is not None:
-            for p in profiles:
-                choices.append((p.id, "Profile {}".format(p.id)))
-            self.fields["profile"].choices = choices
-
-    def clean_profile(self):
-        """
-        Clean the profile variable in this form.
-
-        :return: the cleaned profile variable
-        """
-        profile = self.cleaned_data.get("profile")
-        profile_qs = Profile.objects.filter(id=profile)
-        if not profile_qs.exists():
-            raise forms.ValidationError("This profile does not exist")
-
-        return profile
-
-
-class AlterDictionaryForm(forms.Form):
-    """Form for altering the dictionary."""
-
-    dictionary = forms.CharField(
-        widget=forms.Textarea(attrs={"style": "width: 100%;"}),
-        required=False,
-        label=False,
-    )
 
 
 class ParameterForm(forms.Form):
@@ -126,12 +82,17 @@ class OutputTemplateAdminForm(forms.ModelForm):
     """Admin form for OutputTemplate."""
 
     def clean_regex(self):
+        """Clean the regex field."""
         regex = self.cleaned_data.get("regex")
         try:
             re.compile(regex)
             return regex
         except re.error as e:
-            raise ValidationError("The regex is incorrect and returned the following error: {}".format(e))
+            raise ValidationError(
+                "The regex is incorrect and returned the following error: {}".format(
+                    e
+                )
+            )
 
     class Meta:
         """Meta class."""

@@ -1,13 +1,20 @@
+import os
+
 from django.http import FileResponse
 from projects.api.v1.permissions import IsOwner
 from projects.models import Project, File
-from projects.services import get_dictionary_files_with_content, update_dictionary_data
-from rest_framework import mixins, viewsets, status
+from projects.services import (
+    get_dictionary_files_with_content,
+    update_dictionary_data,
+)
+from rest_framework import status
 from rest_framework.decorators import api_view
-from rest_framework.exceptions import PermissionDenied, MethodNotAllowed, ValidationError
+from rest_framework.exceptions import (
+    PermissionDenied,
+    MethodNotAllowed,
+    ValidationError,
+)
 from rest_framework.generics import (
-    ListAPIView,
-    DestroyAPIView,
     ListCreateAPIView,
     RetrieveDestroyAPIView,
 )
@@ -100,14 +107,35 @@ def download_project_file(request, **kwargs):
     project = kwargs.get("project")
     if request.user.is_authenticated and request.user == project.user:
         try:
-            file = File.objects.get(project=project, pk=kwargs.get('pk'))
+            file = File.objects.get(project=project, pk=kwargs.get("pk"))
         except File.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         file_handle = file.file.open()
 
         response = FileResponse(file_handle)
-        response['Content-Length'] = file.file.size
-        response['Content-Disposition'] = 'attachment; filename="%s"' % file.filename
+        response["Content-Length"] = file.file.size
+        response["Content-Disposition"] = (
+            'attachment; filename="%s"' % file.filename
+        )
+
+        return response
+    else:
+        raise PermissionDenied
+
+
+@api_view(["GET"])
+def download_project_archive(request, **kwargs):
+    """Download a project archive."""
+    project = kwargs.get("project")
+    if request.user.is_authenticated and request.user == project.user:
+        filename = project.create_downloadable_archive()
+        file_handle = open(filename, "rb")
+        response = FileResponse(file_handle)
+
+        response["Content-Length"] = os.path.getsize(filename)
+        response[
+            "Content-Disposition"
+        ] = 'attachment; filename="{}.zip"'.format(project.name)
 
         return response
     else:
@@ -120,15 +148,27 @@ def dictionary_get_update(request, **kwargs):
     project = kwargs.get("project")
     if request.user.is_authenticated and request.user == project.user:
         if request.method == "GET":
-            dictionary_files_with_content = get_dictionary_files_with_content(project)
-            return Response(status=status.HTTP_200_OK, data={"files": dictionary_files_with_content})
+            dictionary_files_with_content = get_dictionary_files_with_content(
+                project
+            )
+            return Response(
+                status=status.HTTP_200_OK,
+                data={"files": dictionary_files_with_content},
+            )
         elif request.method == "PATCH":
             if "files" in request.data and type(request.data["files"]) == list:
                 update_dictionary_data(project, request.data["files"])
-                dictionary_files_with_content = get_dictionary_files_with_content(project)
-                return Response(status=status.HTTP_200_OK, data={"files": dictionary_files_with_content})
+                dictionary_files_with_content = get_dictionary_files_with_content(
+                    project
+                )
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={"files": dictionary_files_with_content},
+                )
             else:
-                raise ValidationError(detail="A list of dictionaries is required.")
+                raise ValidationError(
+                    detail="A list of dictionaries is required."
+                )
         else:
             raise MethodNotAllowed(method=request.method)
     else:

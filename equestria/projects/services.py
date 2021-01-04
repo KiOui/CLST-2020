@@ -13,24 +13,37 @@ def remove_files_from_directory(absolute_path_to_directory):
 
 
 def get_dictionary_files_with_content(project):
+    """Get a list of dictionary file ids, names and content."""
     dictionary_files = project.get_dictionary_files()
     dictionary_files_with_content = []
     for file in dictionary_files:
-        with file.file.open('r') as f:
+        with file.file.open("r") as f:
             lines = f.read()
-            dictionary_files_with_content.append({"id": file.id, "filename": file.filename, "content": lines})
+            dictionary_files_with_content.append(
+                {"id": file.id, "filename": file.filename, "content": lines}
+            )
     return dictionary_files_with_content
 
 
 def update_dictionary_data(project, list_update):
+    """Update the content of a dictionary file."""
     dictionary_files = project.get_dictionary_files()
     for dictionary_update in list_update:
-        if type(dictionary_update) == dict and "content" in dictionary_update.keys() and "id" in dictionary_update.keys() and type(dictionary_update["content"]) == str and type(dictionary_update["id"]) == int:
+        if (
+            type(dictionary_update) == dict
+            and "content" in dictionary_update.keys()
+            and "id" in dictionary_update.keys()
+            and type(dictionary_update["content"]) == str
+            and type(dictionary_update["id"]) == int
+        ):
             for dictionary_file in dictionary_files:
                 if dictionary_file.id == dictionary_update["id"]:
-                    update_file_contents(dictionary_file, dictionary_update["content"])
+                    update_file_contents(
+                        dictionary_file, dictionary_update["content"]
+                    )
 
 
 def update_file_contents(file, content):
-    with file.file.open('w') as f:
+    """Update the content of a file."""
+    with file.file.open("w") as f:
         f.write(content)

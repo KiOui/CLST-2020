@@ -14,16 +14,12 @@
         <div class="col rounded lighter padding">
             <h1>Check dictionary</h1>
             <div id="check-dictionary-container">
-                <label for="check-dictionary-select">Dictionary file</label>
-                <select id="check-dictionary-select">
-                    {% for file in dictionary_files %}
-                        <option value="{{ file.id }}">{{ file.filename }}</option>
-                    {% endfor %}
+                <select @input="change-selected-textarea()" id="check-dictionary-select">
+                    <option v-for="file in files" :value="file.id"><% file.filename %></option>
                 </select>
-                {% for file in dictionary_files %}
-                    <textarea onkeyup="set_timeout()" id="text-area-{{ file.id }}">{{ file.content }}</textarea>
-                {% endfor %}
+                <textarea class="w-100" rows="20" v-model="file.content" v-for="file in files" :id="file.id" :value="file.content"></textarea>
             </div>
+            <div class="btn btn-success" onclick="update_dictionary_containers()">Save files</div>
             <a class="btn btn-primary btn-style" href="{% url 'projects:fa_overview' project=project %}">Continue to FA overview</a>
         </div>
     </div>
@@ -33,5 +29,21 @@
     <script src="{% static 'projects/js/update-dictionary.js' %}"></script>
     <script>
         let project_id = '{{ project.id }}';
+    </script>
+    <script>
+        let check_dictionary_vue = new Vue({
+            el: '#check-dictionary-container',
+            delimiters: ['<%', '%>'],
+            data: {
+                files: []
+            },
+            created() {
+                fetch('{% url 'v1:dictionary-get-update' project=project %}')
+                    .then(response => response.json())
+                    .then(json => {
+                        this.files = json.files;
+                    });
+            },
+        });
     </script>
 {% endblock %}

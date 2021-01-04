@@ -1,14 +1,12 @@
 """Module to define db models related to the upload app."""
 import re
 import secrets
-import shutil
 
 from django.core.exceptions import ValidationError
 from django.db.models import *
 import clam.common.client
 import clam.common.data
 import clam.common.status
-import os
 from clam.common import parameters as clam_parameters
 
 
@@ -48,6 +46,7 @@ class Script(Model):
 
     @property
     def output_templates(self):
+        """Get all output templates associated with this script."""
         return OutputTemplate.objects.filter(script=self)
 
     def refresh(self):
@@ -139,6 +138,7 @@ class Script(Model):
 
     @property
     def variable_parameters(self):
+        """Get variable parameters (parameters without a preset)."""
         return self.get_variable_parameters()
 
     def get_variable_parameters(self):
@@ -280,21 +280,6 @@ class Script(Model):
         else:
             return clam.common.client.CLAMClient(self.hostname)
 
-    def get_valid_profiles(self, folder):
-        """
-        Get the profiles for which the current files meet the requirements.
-
-        :param folder: the folder to check for files
-        :return:
-        """
-        profiles = Profile.objects.filter(script=self)
-        valid_profiles = []
-
-        for p in profiles:
-            if p.is_valid(folder):
-                valid_profiles.append(p)
-        return valid_profiles
-
     class Meta:
         """
         Display configuration for admin pane.
@@ -316,7 +301,30 @@ class Profile(Model):
         process                 The process associated with this profile.
     """
 
-    script = ForeignKey(Script, related_name="profiles", on_delete=CASCADE, null=False, blank=False)
+    script = ForeignKey(
+        Script,
+        related_name="profiles",
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+    )
+
+    def __str__(self):
+        """
+        Use identifier in admin pane.
+
+        :return: string including the identifier of this object
+        """
+        return "Profile {}".format(self.pk)
+
+    @property
+    def templates(self):
+        """
+        Get the templates corresponding to this profile.
+
+        :return: a QuerySet of templates corresponding to this profile
+        """
+        return InputTemplate.objects.filter(corresponding_profile=self)
 
     class Meta:
         """
@@ -329,64 +337,6 @@ class Profile(Model):
         ordering = ["id"]
         verbose_name = "Profile"
         verbose_name_plural = "Profiles"
-
-    def __str__(self):
-        """
-        Use identifier in admin pane.
-
-        :return: string including the identifier of this object
-        """
-        return "Profile {}".format(self.pk)
-
-    def is_valid(self, folder):
-        """
-        Check if a profile is valid for a given folder (check if all input templates are valid for a given folder).
-
-        :param folder: the folder to check
-        :return: True if all InputTemplates corresponding to this profile are valid for the folder, False otherwise
-        """
-        templates = InputTemplate.objects.filter(corresponding_profile=self)
-        for template in templates:
-            if not template.is_valid(folder):
-                return False
-        return True
-
-    def get_valid_files(self, folder):
-        """
-        Get a dictionary of valid files for all input templates corresponding to this profile.
-
-        :param folder: the folder to search for the files
-        :return: a dictionary of the form:
-        dict(
-            template.id -> [relative_path_to_valid_file, relative_path_to_valid_file, ...],
-            template.id -> [...],
-            ...
-        )
-        containing for each template corresponding to this profile, a set of files corresponding to that template
-        """
-        templates = InputTemplate.objects.filter(corresponding_profile=self)
-        valid_for = dict()
-        for template in templates:
-            valid_files = template.is_valid_for(folder)
-            if valid_files:
-                valid_for[template.id] = valid_files
-            else:
-                valid_for[template.id] = []
-        return valid_for
-
-    @property
-    def templates(self):
-        """
-        Get the templates corresponding to this profile.
-
-        :return: a QuerySet of templates corresponding to this profile
-        """
-        return InputTemplate.objects.filter(corresponding_profile=self)
-
-    class IncorrectProfileException(Exception):
-        """Exception to be thrown when the project has an incorrect state."""
-
-        pass
 
 
 class InputTemplate(Model):
@@ -416,62 +366,12 @@ class InputTemplate(Model):
     unique = BooleanField()
     accept_archive = BooleanField()
     corresponding_profile = ForeignKey(
-        Profile, related_name="input_templates", on_delete=CASCADE, null=False, blank=False
+        Profile,
+        related_name="input_templates",
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
     )
-
-    def move_corresponding_files(self, from_directory, to_directory):
-        """
-        Move the corresponding files of this template from a directory to a directory (overwrite if necessary).
-
-        :param from_directory: the directory to check files from
-        :param to_directory: the directory to move files to
-        :return: None
-        """
-        for file in [
-            f
-            for f in os.listdir(from_directory)
-            if f.endswith("." + self.extension)
-        ]:
-            shutil.copyfile(
-                os.path.join(from_directory, file),
-                os.path.join(to_directory, file),
-            )
-
-    def is_valid(self, folder):
-        """
-        Check if a file with the extension of this object is present in the folder.
-
-        :param folder: the folder to search for the file
-        :return: True if at least one file is found with the extension from this object, False otherwise
-        """
-        matching_files = 0
-        for file in os.listdir(folder):
-            if file.endswith(self.extension):
-                matching_files += 1
-        if matching_files == 0 and not self.optional:
-            return False
-        elif matching_files > 1 and self.unique:
-            return False
-        else:
-            return True
-
-    def is_valid_for(self, folder):
-        """
-        Get all the files corresponding to this input template from a folder.
-
-        :param folder: the folder to search for the files with specific extension
-        :return: a list relative paths to with the extension of this object in the folder,
-        if no files are found False is returned
-        """
-        valid_files = list()
-        for file in os.listdir(folder):
-            if file.endswith(self.extension):
-                valid_files.append(file)
-
-        if len(valid_files) == 0:
-            return False
-        else:
-            return valid_files
 
     def __str__(self):
         """
@@ -485,11 +385,16 @@ class InputTemplate(Model):
         else:
             optional = "Optional" if self.optional else ""
         if self.unique or self.optional:
-            return "{}{} file with extension {}".format(
-                unique, optional, self.extension
+            return "{}{} file with extension {} for script {}".format(
+                unique,
+                optional,
+                self.extension,
+                self.corresponding_profile.script,
             )
         else:
-            return "File with extension {}".format(self.extension)
+            return "File with extension {} for script {}".format(
+                self.extension, self.corresponding_profile.script
+            )
 
     class Meta:
         """
@@ -505,17 +410,20 @@ class InputTemplate(Model):
 
 
 class OutputTemplate(Model):
+    """OutputTemplate model."""
 
     name = CharField(max_length=1024, null=False, blank=False)
     script = ForeignKey(Script, on_delete=CASCADE, null=False, blank=False)
     regex = CharField(max_length=1024, null=False, blank=False)
 
     def __init__(self, *args, **kwargs):
+        """Initialise OutputTemplate model."""
         super().__init__(*args, **kwargs)
         self._regex = re.compile(self.regex)
 
     @staticmethod
     def match_any(filename, output_templates):
+        """Check if any of the output templates matches filename."""
         for output_template in output_templates:
             if output_template.match(filename):
                 return True
@@ -523,12 +431,14 @@ class OutputTemplate(Model):
 
     @staticmethod
     def match_all(filename, output_templates):
+        """Check if all of the output templates matches filename."""
         for output_template in output_templates:
             if not output_template.match(filename):
                 return False
         return True
 
     def match(self, filename):
+        """Check if this output template matches filename."""
         return self._regex.match(filename)
 
 
@@ -555,7 +465,11 @@ class BaseParameter(Model):
 
     name = CharField(max_length=1024)
     corresponding_script = ForeignKey(
-        Script, related_name="parameters", on_delete=CASCADE, null=False, blank=False
+        Script,
+        related_name="parameters",
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
     )
     preset = BooleanField(default=False)
     type = IntegerField(choices=TYPES)
@@ -896,6 +810,7 @@ class ChoiceParameter(Model):
             choice.delete()
 
     def get_available_choices(self):
+        """Get Choice object corresponding to this ChoiceParameter."""
         return Choice.objects.filter(corresponding_choice_parameter=self)
 
     def set_preset(self, value):

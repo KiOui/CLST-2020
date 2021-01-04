@@ -26,12 +26,19 @@ class ProcessSerializer(serializers.ModelSerializer):
     script_type = serializers.SerializerMethodField()
 
     def get_log_messages(self, instance):
+        """Get the log messages of a Process."""
         return LogMessageSerializer(instance.log_messages, many=True).data
 
     def get_script_type(self, instance):
-        return "FA" if instance.script == instance.project.pipeline.fa_script else "G2P"
+        """Get the script type of a Process."""
+        return (
+            "FA"
+            if instance.script == instance.project.pipeline.fa_script
+            else "G2P"
+        )
 
     def get_status_string(self, instance):
+        """Get the status string of a Process."""
         return instance.get_status_string()
 
     class Meta:
@@ -52,11 +59,16 @@ class ProcessSerializer(serializers.ModelSerializer):
 
 class ParameterSerializer(serializers.ModelSerializer):
     """Serializer for Parameter model."""
+
     value = serializers.SerializerMethodField()
 
     def get_value(self, instance):
+        """Get the value of the ParameterSetting belonging to the Parameter."""
         try:
-            return ParameterSetting.objects.get(base_parameter=instance, project=self.context.get('view').kwargs.get('project')).raw_value
+            return ParameterSetting.objects.get(
+                base_parameter=instance,
+                project=self.context.get("view").kwargs.get("project"),
+            ).raw_value
         except ParameterSetting.DoesNotExist:
             return None
 
@@ -84,10 +96,18 @@ class FileSettingSerializer(serializers.ModelSerializer):
 
 class InputTemplateSettingSerializer(serializers.ModelSerializer):
     """Serializer for input template settings."""
+
     files = serializers.SerializerMethodField()
 
     def get_files(self, instance):
-        return [x.file.id for x in FileSetting.objects.filter(input_template=instance, file__project=self.context.get('view').kwargs.get('project'))]
+        """Get all FileSettings belonging to the InputTemplate."""
+        return [
+            x.file.id
+            for x in FileSetting.objects.filter(
+                input_template=instance,
+                file__project=self.context.get("view").kwargs.get("project"),
+            )
+        ]
 
     class Meta:
         """Meta class."""
@@ -101,6 +121,7 @@ class InputTemplateSettingSerializer(serializers.ModelSerializer):
 
 class ProfileSettingSerializer(serializers.ModelSerializer):
     """Serializer for profile settings."""
+
     input_templates = InputTemplateSettingSerializer(many=True, read_only=False)
 
     class Meta:
@@ -115,6 +136,7 @@ class ProfileSettingSerializer(serializers.ModelSerializer):
 
 class SettingsSerializer(serializers.ModelSerializer):
     """Serializer for Product model."""
+
     profiles = ProfileSettingSerializer(many=True, read_only=False)
     parameters = ParameterSerializer(many=True, read_only=False)
 

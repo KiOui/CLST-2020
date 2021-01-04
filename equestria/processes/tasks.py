@@ -1,7 +1,6 @@
 """Module to handle tasks I guess."""
 from background_task import background
 import processes.models
-from projects.models import Project
 
 
 @background(schedule=1)

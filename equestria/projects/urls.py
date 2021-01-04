@@ -11,6 +11,11 @@ urlpatterns = [
         "<project:project>", ProjectDetailView.as_view(), name="project_detail"
     ),
     path(
+        "<project:project>/delete",
+        ProjectDeleteView.as_view(),
+        name="delete_project",
+    ),
+    path(
         "<project:project>/check-dictionary",
         CheckDictionaryScreen.as_view(),
         name="cd_screen",

@@ -4,7 +4,11 @@ from rest_framework.generics import (
 )
 from scripts.models import Profile, Script
 
-from .serializers import ProfileSerializer, ScriptSerializer, ScriptDetailSerializer
+from .serializers import (
+    ProfileSerializer,
+    ScriptSerializer,
+    ScriptDetailSerializer,
+)
 
 
 class ScriptListView(ListAPIView):
@@ -26,4 +30,3 @@ class ProfileRetrieveView(RetrieveAPIView):
 
     serializer_class = ProfileSerializer
     queryset = Profile.objects.all()
-

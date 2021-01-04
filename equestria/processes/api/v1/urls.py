@@ -1,6 +1,11 @@
 from django.urls import path, register_converter
 from processes.api.v1.views import (
-    ScriptSettingsRetrieveUpdateAPIView, configure_automatically, start_process, ProcessRetrieveAPIView, ProcessListAPIView, process_file_list_view
+    ScriptSettingsRetrieveUpdateAPIView,
+    configure_automatically,
+    start_process,
+    ProcessRetrieveAPIView,
+    ProcessListAPIView,
+    process_file_list_view,
 )
 from scripts.converters import ScriptConverter, ProfileConverter
 from projects.converters import ProjectConverter
@@ -38,9 +43,7 @@ urlpatterns = [
         name="process-retrieve",
     ),
     path(
-        "<project:project>",
-        ProcessListAPIView.as_view(),
-        name="process-list",
+        "<project:project>", ProcessListAPIView.as_view(), name="process-list",
     ),
     path(
         "<process:process>/files",

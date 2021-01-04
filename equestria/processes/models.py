@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import re
 import secrets
 import shutil
 import xml.etree.ElementTree as ET
@@ -11,7 +12,13 @@ import pytz
 from django.conf import settings
 from django.db import models
 from projects.models import File, Project
-from scripts.models import Script, InputTemplate, BaseParameter, Profile, OutputTemplate
+from scripts.models import (
+    Script,
+    InputTemplate,
+    BaseParameter,
+    Profile,
+    OutputTemplate,
+)
 from processes.tasks import update_script
 
 
@@ -46,8 +53,12 @@ class Process(models.Model):
         (STATUS_ERROR_DOWNLOAD, "Error while downloading files from CLAM"),
     )
 
-    script = models.ForeignKey(Script, on_delete=models.CASCADE, blank=False, null=False)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, blank=False, null=False)
+    script = models.ForeignKey(
+        Script, on_delete=models.CASCADE, blank=False, null=False
+    )
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, blank=False, null=False
+    )
     clam_id = models.CharField(max_length=256, null=True, default=None)
     status = models.IntegerField(choices=STATUS, default=0)
     folder = models.FilePathField(allow_folders=True, allow_files=False)
@@ -55,7 +66,9 @@ class Process(models.Model):
 
     def __str__(self):
         """Convert this object to string."""
-        return "Process for {} ({})".format(self.script, Process.STATUS[self.status][1])
+        return "Process for {} ({})".format(
+            self.script, Process.STATUS[self.status][1]
+        )
 
     @staticmethod
     def get_random_clam_id():
@@ -202,9 +215,15 @@ class Process(models.Model):
         """
         clamclient = self.script.get_clam_server()
         for template in templates:
-            file_settings = FileSetting.objects.filter(input_template=template, file__project=self.project)
+            file_settings = FileSetting.objects.filter(
+                input_template=template, file__project=self.project
+            )
             for file_setting in file_settings:
-                clamclient.addinputfile(self.clam_id, template.template_id, file_setting.file.absolute_file_path)
+                clamclient.addinputfile(
+                    self.clam_id,
+                    template.template_id,
+                    file_setting.file.absolute_file_path,
+                )
 
     def cleanup(self, status=STATUS_CREATED):
         """
@@ -250,7 +269,10 @@ class Process(models.Model):
 
         :return: True if downloading the files and extracting them succeeded, False otherwise
         """
-        if self.status == Process.STATUS_WAITING or self.status == Process.STATUS_ERROR_DOWNLOAD:
+        if (
+            self.status == Process.STATUS_WAITING
+            or self.status == Process.STATUS_ERROR_DOWNLOAD
+        ):
             self.set_status(Process.STATUS_DOWNLOADING)
             if self.download_archive_and_decompress():
                 self.move_downloaded_output_files()
@@ -269,10 +291,21 @@ class Process(models.Model):
         :return: None
         """
         for file in self.file_list:
-            if (files is None and OutputTemplate.match_any(file, self.script.output_templates)) or (files is not None and file in files):
-                file_obj, created = File.objects.get_or_create(file=os.path.join(self.project.folder, file), project=self.project)
+            if (
+                files is None
+                and OutputTemplate.match_any(file, self.script.output_templates)
+            ) or (files is not None and file in files):
+                file_obj, created = File.objects.get_or_create(
+                    file=os.path.join(self.project.folder, file),
+                    project=self.project,
+                )
                 file_obj.save()
-                shutil.copy(os.path.join(self.absolute_process_folder, file), os.path.join(self.project.absolute_path, file_obj.absolute_file_path))
+                shutil.copy(
+                    os.path.join(self.absolute_process_folder, file),
+                    os.path.join(
+                        self.project.absolute_path, file_obj.absolute_file_path
+                    ),
+                )
 
     def download_archive_and_decompress(self):
         """
@@ -283,11 +316,13 @@ class Process(models.Model):
         try:
             clamclient = self.script.get_clam_server()
             os.makedirs(self.absolute_process_folder, exist_ok=True)
-            clamclient.downloadarchive(self.clam_id, self.absolute_output_archive_path, "zip")
-            with zipfile.ZipFile(self.absolute_output_archive_path, "r") as zip_ref:
-                zip_ref.extractall(
-                    self.absolute_process_folder
-                )
+            clamclient.downloadarchive(
+                self.clam_id, self.absolute_output_archive_path, "zip"
+            )
+            with zipfile.ZipFile(
+                self.absolute_output_archive_path, "r"
+            ) as zip_ref:
+                zip_ref.extractall(self.absolute_process_folder)
             os.remove(self.absolute_output_archive_path)
             return True
         except Exception as e:
@@ -318,6 +353,7 @@ class Process(models.Model):
 
     @property
     def absolute_process_folder(self):
+        """Get the absolute process folder path."""
         return os.path.join(
             os.path.join(settings.MEDIA_ROOT, settings.PROCESS_DATA_FOLDER),
             str(self.id),
@@ -325,17 +361,8 @@ class Process(models.Model):
 
     @property
     def absolute_output_archive_path(self):
+        """Get the absolute path to the output archive."""
         return os.path.join(self.absolute_process_folder, "output-archive.zip")
-
-    def get_output_file_name(self, extension="zip"):
-        """
-        Get a name of an not existing file to store data to.
-
-        :return: a path to a non existing file
-        """
-        return os.path.join(
-            self.folder, str(self.clam_id) + ".{}".format(extension)
-        )
 
     def get_status_string(self):
         """
@@ -362,7 +389,12 @@ class Process(models.Model):
 
     @property
     def file_list(self):
-        return [x for x in os.listdir(self.absolute_process_folder) if os.path.isfile(os.path.join(self.absolute_process_folder, x))]
+        """Get a file list of the files in the output directory of the process."""
+        return [
+            x
+            for x in os.listdir(self.absolute_process_folder)
+            if os.path.isfile(os.path.join(self.absolute_process_folder, x))
+        ]
 
     class Meta:
         """
@@ -380,44 +412,119 @@ class LogMessage(models.Model):
 
     time = models.DateTimeField(null=True)
     message = models.CharField(max_length=16384)
-    process = models.ForeignKey(Process, on_delete=models.CASCADE, null=False, blank=False)
+    process = models.ForeignKey(
+        Process, on_delete=models.CASCADE, null=False, blank=False
+    )
     index = models.PositiveIntegerField()
 
 
 class FileSetting(models.Model):
     """Class for adding Files to InputTemplates."""
 
-    file = models.ForeignKey(File, on_delete=models.CASCADE, null=False, blank=False)
-    input_template = models.ForeignKey(InputTemplate, related_name="file_settings", on_delete=models.CASCADE, null=False, blank=False)
+    file = models.ForeignKey(
+        File, on_delete=models.CASCADE, null=False, blank=False
+    )
+    input_template = models.ForeignKey(
+        InputTemplate,
+        related_name="file_settings",
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+    )
 
     @staticmethod
-    def create_for_input_template(input_template: InputTemplate, project: Project):
-        files_with_extension = project.get_files_with_extension(input_template.extension)
-        if input_template.unique and len(files_with_extension) == 1:
-            return FileSetting.objects.get_or_create(file=files_with_extension[0], input_template=input_template)
+    def create_for_file_presets(
+        input_template: InputTemplate, project: Project
+    ):
+        """Create file settings automatically for the input template using the file presets."""
+        file_presets = FilePreset.objects.filter(input_template=input_template)
+        file_preset_files = [
+            x
+            for x in project.files
+            if FilePreset.match_any(x.filename, file_presets)
+        ]
+        if len(file_preset_files) == 1 and input_template.unique:
+            return [
+                FileSetting.objects.get_or_create(
+                    file=x, input_template=input_template
+                )
+                for x in file_preset_files
+            ]
         elif not input_template.unique:
-            return [FileSetting.objects.get_or_create(file=x, input_template=input_template) for x in files_with_extension]
-        return None
+            return [
+                FileSetting.objects.get_or_create(
+                    file=x, input_template=input_template
+                )
+                for x in file_preset_files
+            ]
+        else:
+            return []
+
+    @staticmethod
+    def create_for_input_template(
+        input_template: InputTemplate, project: Project
+    ):
+        """Create file settings automatically for the input template."""
+        file_presets = FileSetting.create_for_file_presets(
+            input_template, project
+        )
+        if len(file_presets) > 0:
+            return file_presets
+
+        files_with_extension = project.get_files_with_extension(
+            input_template.extension
+        )
+        if input_template.unique and len(files_with_extension) == 1:
+            return [
+                FileSetting.objects.get_or_create(
+                    file=files_with_extension[0], input_template=input_template
+                )
+            ]
+        elif not input_template.unique:
+            return [
+                FileSetting.objects.get_or_create(
+                    file=x, input_template=input_template
+                )
+                for x in files_with_extension
+            ]
+        else:
+            return []
 
 
 class ParameterSetting(models.Model):
     """Class for parameter settings."""
 
     class InvalidValueType(Exception):
+        """Exeception indicating that a ParameterSetting has an incorrect type."""
+
         pass
 
     _value = models.CharField(max_length=1024)
-    base_parameter = models.ForeignKey(BaseParameter, related_name="parameter_setting", on_delete=models.CASCADE, null=False, blank=False)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=False, blank=False)
+    base_parameter = models.ForeignKey(
+        BaseParameter,
+        related_name="parameter_setting",
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+    )
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, null=False, blank=False
+    )
 
     @property
     def raw_value(self):
+        """Get the raw value."""
         return self._value
 
     @property
     def value(self):
+        """Get the value as the intended type."""
         if self.base_parameter.type == BaseParameter.BOOLEAN_TYPE:
-            return self._value != "0" and self._value != "false" and self._value != "False"
+            return (
+                self._value != "0"
+                and self._value != "false"
+                and self._value != "False"
+            )
         elif self.base_parameter.type == BaseParameter.STATIC_TYPE:
             return self._value
         elif self.base_parameter.type == BaseParameter.STRING_TYPE:
@@ -429,8 +536,16 @@ class ParameterSetting(models.Model):
                 for choice in choices:
                     if choice.value == self._value:
                         return choice
-                raise ValueError("Choice does not exist for base parameter {} and choice {}.".format(self.base_parameter, self._value))
-            raise ValueError("Choice parameter does not exist for base parameter {}".format(self.base_parameter))
+                raise ValueError(
+                    "Choice does not exist for base parameter {} and choice {}.".format(
+                        self.base_parameter, self._value
+                    )
+                )
+            raise ValueError(
+                "Choice parameter does not exist for base parameter {}".format(
+                    self.base_parameter
+                )
+            )
         elif self.base_parameter.type == BaseParameter.TEXT_TYPE:
             return self._value
         elif self.base_parameter.type == BaseParameter.INTEGER_TYPE:
@@ -438,9 +553,12 @@ class ParameterSetting(models.Model):
         elif self.base_parameter.type == BaseParameter.FLOAT_TYPE:
             return float(self._value)
         else:
-            raise TypeError("Type of parameter {} unknown".format(self.base_parameter))
+            raise TypeError(
+                "Type of parameter {} unknown".format(self.base_parameter)
+            )
 
     def has_right_value_type(self):
+        """Check if the type of the _value field is correct."""
         if self.base_parameter.type == BaseParameter.BOOLEAN_TYPE:
             return True
         elif self.base_parameter.type == BaseParameter.STATIC_TYPE:
@@ -450,7 +568,9 @@ class ParameterSetting(models.Model):
         elif self.base_parameter.type == BaseParameter.CHOICE_TYPE:
             choice_parameter = self.base_parameter.get_typed_parameter()
             if choice_parameter is not None:
-                return self._value in [x.value for x in choice_parameter.get_available_choices()]
+                return self._value in [
+                    x.value for x in choice_parameter.get_available_choices()
+                ]
         elif self.base_parameter.type == BaseParameter.TEXT_TYPE:
             return True
         elif self.base_parameter.type == BaseParameter.INTEGER_TYPE:
@@ -467,14 +587,54 @@ class ParameterSetting(models.Model):
                 return False
         return False
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+    def save(
+        self,
+        force_insert=False,
+        force_update=False,
+        using=None,
+        update_fields=None,
+    ):
+        """Save this model."""
         if self.has_right_value_type():
-            return super().save(force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields)
+            return super().save(
+                force_insert=force_insert,
+                force_update=force_update,
+                using=using,
+                update_fields=update_fields,
+            )
         else:
-            raise ParameterSetting.InvalidValueType("Type validation for {} failed".format(self))
+            raise ParameterSetting.InvalidValueType(
+                "Type validation for {} failed".format(self)
+            )
 
     class Meta:
         """Meta class."""
 
         unique_together = ("base_parameter", "project")
+
+
+class FilePreset(models.Model):
+    """File presets."""
+
+    name = models.CharField(max_length=1024, null=False, blank=False)
+    input_template = models.ForeignKey(
+        InputTemplate, on_delete=models.CASCADE, null=False, blank=False
+    )
+    regex = models.CharField(max_length=1024, null=False, blank=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize file preset."""
+        super().__init__(*args, **kwargs)
+        self._regex = re.compile(self.regex)
+
+    @staticmethod
+    def match_any(filename, filepresets):
+        """Match any filename against a list of filepresets."""
+        for filepreset in filepresets:
+            if filepreset.match(filename):
+                return True
+        return False
+
+    def match(self, filename):
+        """Match a filename against this file preset."""
+        return self._regex.match(filename)

@@ -1,5 +1,6 @@
 import os
 import shutil
+import zipfile
 from pathlib import Path
 
 from scripts.models import Profile
@@ -7,7 +8,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
 from pipelines.models import Pipeline
-from scripts.services import zip_dir
 from .services import remove_files_from_directory
 
 User = get_user_model()
@@ -65,9 +65,11 @@ class Project(models.Model):
 
     @property
     def files(self):
+        """Get all files in of this project."""
         return File.objects.filter(project=self)
 
     def get_files_with_extension(self, extension):
+        """Get all files in this project with an extension."""
         return [x for x in self.files if x.extension == extension]
 
     def save(self, *args, **kwargs):
@@ -81,11 +83,8 @@ class Project(models.Model):
         remove_files_from_directory(self.absolute_path)
 
     def get_dictionary_files(self):
-        dictionary_files = []
-        for file in self.files:
-            if file.extension == "dict":
-                dictionary_files.append(file)
-        return dictionary_files
+        """Get all dictionary files in this project (files ending with .dict)."""
+        return self.get_files_with_extension("dict")
 
     def __str__(self):
         """Convert this object to string."""
@@ -120,12 +119,14 @@ class Project(models.Model):
 
         :return: the filename of the downloadable archive
         """
-        _, zip_filename = os.path.split(self.folder)
-        zip_filename = zip_filename + ".zip"
-        return os.path.join(
-            self.folder,
-            zip_dir(self.folder, os.path.join(self.folder, zip_filename)),
+        zip_absolute_path = os.path.join(
+            self.absolute_path, "{}.zip".format(self.name)
         )
+        zip_obj = zipfile.ZipFile(zip_absolute_path, "w", zipfile.ZIP_DEFLATED)
+        for file in self.files:
+            zip_obj.write(file.absolute_file_path, file.filename)
+        zip_obj.close()
+        return zip_absolute_path
 
     def cleanup(self):
         """
@@ -201,12 +202,14 @@ class File(models.Model):
 
     @property
     def extension(self):
+        """Get the extension of this file."""
         _, extension = os.path.splitext(self.filename)
         return extension[1:]
 
     @property
     def content(self):
-        with self.file.open('r') as file:
+        """Get the content of this file."""
+        with self.file.open("r") as file:
             return file.read()
 
     def save(self, *args, **kwargs):

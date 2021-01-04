@@ -19,6 +19,10 @@
             <div class="col-md-7">
                 <h1>{{ script_type }} processes for this project</h1>
                 <div id="process-list">
+                    <div class="process-container" v-for="process in processes">
+                        <a :href="`/processes/${process.pk}`"><% process.created %></a>
+                        <div class="process-status"><% process.status_string %></div>
+                    </div>
                 </div>
             </div>
             <div class="col-md-1">
@@ -39,10 +43,23 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="{% static 'processes/js/process-list.js' %}"></script>
     <script>
+        let process_vue = new Vue({
+            el: '#process-list',
+            delimiters: ['<%', '%>'],
+            data: {
+                processes: []
+            },
+            created() {
+                fetch('{% url 'v1:process-list' project=project %}')
+                    .then(response => response.json())
+                    .then(json => {
+                        this.processes = json.filter(process => process.script_type === '{{ script_type }}');
+                    });
+            }
+        });
         let project_id = '{{ project.id }}';
         let script_id = '{% if script_type == "FA" %}{{ project.pipeline.fa_script.id }}{% else %}{{ project.pipeline.g2p_script.id }}{% endif %}';
-        add_update_list(update_and_callback, ["{% url 'v1:process-list' project=project %}", {}, update_process_list, 'GET', '{{ script_type }}']);
+        add_update_list(update_and_callback, ["{% url 'v1:process-list' project=project %}", {}, function(data) {process_vue.processes = data.filter(process => process.script_type === '{{ script_type }}')}, 'GET']);
     </script>
 {% endblock %}

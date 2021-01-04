@@ -26,7 +26,7 @@
                             <div class="d-flex flex-row mb-1">
                                 <span class="flex-grow-1"><strong>{{ project.name }}</strong></span>
                                 <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Continue</a>
-                                <a class="btn btn-danger ml-1" href="{% url "scripts:delete_project" project=project %}">Delete</a>
+                                <a class="btn btn-danger ml-1" href="{% url "projects:delete_project" project=project %}">Delete</a>
                             </div>
                         {% endfor %}
                         </div>
