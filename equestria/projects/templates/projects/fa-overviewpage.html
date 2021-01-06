@@ -23,10 +23,10 @@
                     <p>We did not find any forced alignment output file. Either there was an error during FA or there are still out of vocabulary words. Download the project archive to inspect what is wrong.</p>
 		    		     
                 {% endif %}
-                <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Go back to upload files</a>
-                <a class="btn btn-primary" href="{% url 'projects:cd_screen' project=project %}">Go back to alter dictionary</a>
-                <a class="btn btn-primary" href="{% url 'v1:project-archive-download' project=project %}">Download project archive</a>
-                <a class="btn btn-danger" href="{% url "projects:delete_project" project=project %}">Delete project</a>
+                <a class="btn btn-primary mb-1" href="{% url 'projects:project_detail' project=project %}">Go back to upload files</a>
+                <a class="btn btn-primary mb-1" href="{% url 'projects:cd_screen' project=project %}">Go back to alter dictionary</a>
+                <a class="btn btn-primary mb-1" href="{% url 'v1:project-archive-download' project=project %}">Download project archive</a>
+                <a class="btn btn-danger mb-1" href="{% url "projects:delete_project" project=project %}">Delete project</a>
             </div>
         </div>
     </div>

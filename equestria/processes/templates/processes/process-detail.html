@@ -20,11 +20,13 @@
                 <h1>{% if process.script == process.project.pipeline.fa_script %}Forced Alignment{% else %}G2P{% endif %} progress</h1>
                 <p>Status: <span id="process-django-status" class="font-weight-bold"><% process_detail.status_string %></span></p>
                 {% if process.script == process.project.pipeline.fa_script %}
-                    <div v-if="process_detail.status == 5" class="btn btn-primary" id="process-continue-button"
+                    <div v-if="process_detail.status == 5" class="btn btn-primary mb-1" id="process-continue-button"
                          onclick="update_and_callback_no_data('/api/v1/processes/settings/{{ process.project.id }}/{{ process.project.pipeline.g2p_script.id }}/configure-automatically', {}, try_g2p_start, method = 'POST')"
-                    >Continue</div>
+                    >Start G2P</div>
+                    <a class="btn btn-primary mb-1" href="{% url 'processes:fa-process-overview' project=project %}">FA process overview</a>
                 {% else %}
-                    <a v-if="process_detail.status == 5" href="{% url 'projects:cd_screen' project=process.project %}" class="btn btn-primary" id="process-continue-button">Continue</a>
+                    <a v-if="process_detail.status == 5" href="{% url 'projects:cd_screen' project=process.project %}" class="btn btn-primary mb-1" id="process-continue-button">Continue to check dictionary</a>
+                    <a class="btn btn-primary mb-1" href="{% url 'processes:g2p-process-overview' project=project %}">G2P process overview</a>
                 {% endif %}
             </div>
             <div class="col-md-1">

@@ -19,8 +19,12 @@
             <div class="col-md-7">
                 <h1>{{ script_type }} processes for this project</h1>
                 <div id="process-list">
-                    <div class="process-container" v-for="process in processes">
-                        <a :href="`/processes/${process.pk}`"><% process.created %></a>
+                    <div class="process-container-title border-bottom d-flex flex-row">
+                        <p class="flex-grow-1 mb-1"><strong>Process time</strong></p>
+                        <p class="mb-1"><strong>Process status</strong></p>
+                    </div>
+                    <div class="process-container d-flex flex-row my-1" v-for="process in processes">
+                        <a class="flex-grow-1" :href="`/processes/${process.pk}`"><% process.created %></a>
                         <div class="process-status"><% process.status_string %></div>
                     </div>
                 </div>
