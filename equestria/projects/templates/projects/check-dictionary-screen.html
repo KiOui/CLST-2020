@@ -26,8 +26,8 @@
             <template v-else>
                 <div class="btn btn-success" onclick="update_dictionary_containers()">Save files</div>
             </template>
-
-            <a class="btn btn-primary btn-style" href="{% url 'projects:fa_overview' project=project %}">Continue to FA overview</a>
+            <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Restart FA with different settings</a>
+            <a class="btn btn-primary" href="{% url 'projects:fa_overview' project=project %}">Continue to FA overview</a>
         </div>
     </div>
 {% endblock %}

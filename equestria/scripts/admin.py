@@ -93,6 +93,7 @@ class BaseParameterInline(admin.StackedInline):
 
     model = models.BaseParameter
     extra = 0
+    inlines = []
 
     exclude = ["name", "type", "preset"]
 
