@@ -1,0 +1,59 @@
+{% extends 'equestria/base.html' %}
+{% load static %}
+
+{% block title %}
+    Equestria: Check dictionary
+{% endblock %}
+
+{% block header %}
+    {% include 'equestria/header.html' with active="cd" %}
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="col rounded lighter padding" id="check-dictionary-container">
+            <h1>Check dictionary</h1>
+            <div>
+                <select v-model="selected_textarea" id="check-dictionary-select">
+                    <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                </select>
+                <textarea v-show="file.id === selected_textarea" class="w-100" rows="20" v-model="file.content" v-for="file in files" :id="file.id" :value="file.content"></textarea>
+            </div>
+
+            <template v-if="loading">
+                <div class="btn btn-success disabled">Save files <span class="loader"></span></div>
+            </template>
+            <template v-else>
+                <div class="btn btn-success" onclick="update_dictionary_containers()">Save files</div>
+            </template>
+            <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Restart FA with different settings</a>
+            <a class="btn btn-primary" href="{% url 'projects:fa_overview' project=project %}">Continue to FA overview</a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'projects/js/update-dictionary.js' %}"></script>
+    <script>
+        let project_id = '{{ project.id }}';
+    </script>
+    <script>
+        let check_dictionary_vue = new Vue({
+            el: '#check-dictionary-container',
+            delimiters: ['<%', '%>'],
+            data: {
+                files: [],
+                selected_textarea: null,
+                loading: false,
+            },
+            created() {
+                fetch('{% url 'v1:dictionary-get-update' project=project %}')
+                    .then(response => response.json())
+                    .then(json => {
+                        this.files = json.files;
+                        this.selected_textarea = json.files.length > 0 ? json.files[0].id : null;
+                    });
+            },
+        });
+    </script>
+{% endblock %}

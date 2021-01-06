@@ -1,0 +1,66 @@
+{% extends 'equestria/base.html' %}
+{% load static configure_process %}
+
+{% block title %}
+    Equestria: {{ script_type }} Processes
+{% endblock %}
+
+{% block header %}
+    {% if script_type == "FA" %}
+        {% include 'equestria/header.html' with active="fa" %}
+    {% else %}
+        {% include 'equestria/header.html' with active="g2p" %}
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="row">
+            <div class="col-md-7">
+                <h1>{{ script_type }} processes for this project</h1>
+                <div id="process-list">
+                    <div class="process-container-title border-bottom d-flex flex-row">
+                        <p class="flex-grow-1 mb-1"><strong>Process time</strong></p>
+                        <p class="mb-1"><strong>Process status</strong></p>
+                    </div>
+                    <div class="process-container d-flex flex-row my-1" v-for="process in processes">
+                        <a class="flex-grow-1" :href="`/processes/${process.pk}`"><% process.created %></a>
+                        <div class="process-status"><% process.status_string %></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-1">
+            </div>
+            <div class="col-md-4 rounded lighter padding">
+                <h2>Create a new {{ script_type }} process</h2>
+                {% if script_type == "FA" %}
+                    {% render_profile_form project.pipeline.fa_script project True %}
+                {% else %}
+                    {% render_profile_form project.pipeline.g2p_script project True %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        let process_vue = new Vue({
+            el: '#process-list',
+            delimiters: ['<%', '%>'],
+            data: {
+                processes: []
+            },
+            created() {
+                fetch('{% url 'v1:process-list' project=project %}')
+                    .then(response => response.json())
+                    .then(json => {
+                        this.processes = json.filter(process => process.script_type === '{{ script_type }}');
+                    });
+            }
+        });
+        let project_id = '{{ project.id }}';
+        let script_id = '{% if script_type == "FA" %}{{ project.pipeline.fa_script.id }}{% else %}{{ project.pipeline.g2p_script.id }}{% endif %}';
+        add_update_list(update_and_callback, ["{% url 'v1:process-list' project=project %}", {}, function(data) {process_vue.processes = data.filter(process => process.script_type === '{{ script_type }}')}, 'GET']);
+    </script>
+{% endblock %}

@@ -5,8 +5,8 @@ from django.http import HttpResponseRedirect
 from scripts import models
 from .forms import ChoiceParameterAdminForm
 from nested_inline.admin import NestedStackedInline, NestedModelAdmin
-from django import forms
 from django.contrib import messages
+from scripts.forms import OutputTemplateAdminForm
 
 
 class BooleanParameterInline(NestedStackedInline):
@@ -93,6 +93,7 @@ class BaseParameterInline(admin.StackedInline):
 
     model = models.BaseParameter
     extra = 0
+    inlines = []
 
     exclude = ["name", "type", "preset"]
 
@@ -166,8 +167,8 @@ class ProfileAdmin(admin.ModelAdmin):
 class ParameterAdmin(NestedModelAdmin):
     """Admin screen for showing parameters inline."""
 
-    list_display = ["name", "type", "corresponding_script", "preset"]
-    list_filter = ["corresponding_script", "preset", "type"]
+    list_display = ["name", "corresponding_script"]
+    list_filter = ["name", "corresponding_script"]
 
     inlines = [
         BooleanParameterInline,
@@ -194,24 +195,16 @@ class InputTemplateAdmin(admin.ModelAdmin):
     list_filter = ["corresponding_profile", "extension"]
 
 
-@admin.register(models.Pipeline)
-class PipelineAdmin(admin.ModelAdmin):
-    """Model admin for Pipelines."""
+@admin.register(models.OutputTemplate)
+class OutputTemplateAdmin(admin.ModelAdmin):
+    """Model admin for OutputTemplates."""
 
-    list_display = ["name", "fa_script", "g2p_script"]
+    form = OutputTemplateAdminForm
 
+    list_display = [
+        "name",
+        "script",
+        "regex",
+    ]
 
-@admin.register(models.Process)
-class ProcessAdmin(admin.ModelAdmin):
-    """Model admin for Processes."""
-
-    list_display = ["folder", "script", "status"]
-    list_filter = ["status", "script"]
-
-
-@admin.register(models.Project)
-class ProjectAdmin(admin.ModelAdmin):
-    """Model admin for Projects."""
-
-    list_display = ["name", "user", "pipeline", "current_process"]
-    list_filter = ["user", "pipeline"]
+    list_filter = ["script"]
