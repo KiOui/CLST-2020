@@ -35,14 +35,9 @@ LOGGING = {
 
 ROOT_URLCONF = "equestria.urls"
 
-if not os.path.exists(TMP_DIR):
-    os.makedirs(TMP_DIR)
 
-if not os.path.exists(DOWNLOAD_DIR):
-    os.makedirs(DOWNLOAD_DIR)
+if not os.path.exists(os.path.join(MEDIA_ROOT, USER_DATA_FOLDER)):
+    os.makedirs(os.path.join(MEDIA_ROOT, USER_DATA_FOLDER))
 
-if not os.path.exists(USER_DATA_FOLDER):
-    os.makedirs(USER_DATA_FOLDER)
-
-if not os.path.exists(PROCESS_DATA_FOLDER):
-    os.makedirs(PROCESS_DATA_FOLDER)
+if not os.path.exists(os.path.join(MEDIA_ROOT, PROCESS_DATA_FOLDER)):
+    os.makedirs(os.path.join(MEDIA_ROOT, PROCESS_DATA_FOLDER))
