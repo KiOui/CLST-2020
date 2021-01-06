@@ -61,7 +61,9 @@ class Process(models.Model):
     )
     clam_id = models.CharField(max_length=256, null=True, default=None)
     status = models.IntegerField(choices=STATUS, default=0)
-    folder = models.FilePathField(allow_folders=True, allow_files=False)
+    folder = models.FilePathField(
+        allow_folders=True, allow_files=False, path="media/processes"
+    )
     created = models.DateTimeField(auto_now_add=True, null=False, blank=False)
 
     def __str__(self):

@@ -34,9 +34,6 @@
                 {% else %}
                     {% render_profile_form project.pipeline.g2p_script project True %}
                 {% endif %}
-                <div class="btn btn-success mt-2 w-100" id="configure-automatically-button" onclick="update_and_callback_no_data(
-                    '{% if script_type == "FA" %}{% url "v1:configure-automatically" project=project script=project.pipeline.fa_script %}{% else %}{% url "v1:configure-automatically" project=project script=project.pipeline.g2p_script %}{% endif %}', {}, update_update_list, method = 'POST')">Configure file settings automatically</div>
-                <div class="btn btn-primary mt-2 w-100" id="start-button" onclick="start_process()">Start {{ script_type }}</div>
             </div>
         </div>
     </div>

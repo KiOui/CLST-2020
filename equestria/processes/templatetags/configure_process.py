@@ -10,4 +10,5 @@ def render_profile_form(script, project, refresh_on_file_change=False):
         "script": script,
         "project": project,
         "refresh_on_file_change": refresh_on_file_change,
+        "script_type": "FA" if script == project.pipeline.fa_script else "G2P",
     }

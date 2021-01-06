@@ -61,6 +61,8 @@ class ParameterSerializer(serializers.ModelSerializer):
     """Serializer for Parameter model."""
 
     value = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    choices = serializers.SerializerMethodField()
 
     def get_value(self, instance):
         """Get the value of the ParameterSetting belonging to the Parameter."""
@@ -72,13 +74,42 @@ class ParameterSerializer(serializers.ModelSerializer):
         except ParameterSetting.DoesNotExist:
             return None
 
+    def get_choices(self, instance):
+        """Get choices corresponding to Choice parameter."""
+        if instance.type == BaseParameter.CHOICE_TYPE:
+            return [
+                x.value
+                for x in instance.get_typed_parameter().get_available_choices()
+            ]
+        else:
+            return None
+
+    def get_type(self, instance):
+        """Get the type of a Parameter."""
+        if instance.type == BaseParameter.BOOLEAN_TYPE:
+            return "Boolean"
+        elif instance.type == BaseParameter.STATIC_TYPE:
+            return "Static"
+        elif instance.type == BaseParameter.STRING_TYPE:
+            return "String"
+        elif instance.type == BaseParameter.CHOICE_TYPE:
+            return "Choice"
+        elif instance.type == BaseParameter.TEXT_TYPE:
+            return "Text"
+        elif instance.type == BaseParameter.INTEGER_TYPE:
+            return "Integer"
+        else:
+            return "Float"
+
     class Meta:
         """Meta class."""
 
         model = BaseParameter
         fields = [
             "name",
+            "type",
             "value",
+            "choices",
         ]
 
 
@@ -115,6 +146,10 @@ class InputTemplateSettingSerializer(serializers.ModelSerializer):
         model = InputTemplate
         fields = [
             "id",
+            "template_id",
+            "label",
+            "unique",
+            "optional",
             "files",
         ]
 
@@ -138,7 +173,18 @@ class SettingsSerializer(serializers.ModelSerializer):
     """Serializer for Product model."""
 
     profiles = ProfileSettingSerializer(many=True, read_only=False)
-    parameters = ParameterSerializer(many=True, read_only=False)
+    parameters = serializers.SerializerMethodField()
+
+    def get_parameters(self, instance):
+        """Get variable parameters."""
+        base_parameters = [
+            x
+            for x in BaseParameter.objects.filter(corresponding_script=instance)
+            if not x.preset
+        ]
+        return ParameterSerializer(
+            base_parameters, many=True, read_only=True, context=self.context
+        ).data
 
     class Meta:
         """Meta class."""

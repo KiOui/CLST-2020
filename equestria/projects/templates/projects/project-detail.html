@@ -80,8 +80,6 @@
                 <div class="tab-content">
                     <div class="tab-pane active mt-2" id="profile-configuration" role="tabpanel" aria-labelledby="profile-configuration-tab">
                         {% render_profile_form project.pipeline.fa_script project True %}
-                        <div class="btn btn-success mt-2 w-100" id="configure-automatically-button" onclick="update_and_callback_no_data('{% url "v1:configure-automatically" project=project script=project.pipeline.fa_script %}', {}, update_update_list, method = 'POST')">Configure file settings automatically</div>
-                        <div class="btn btn-primary mt-2 w-100" id="start-button" onclick="start_process()">Start FA</div>
                     </div>
                     <div class="tab-pane mt-2" id="available-profiles" role="tabpanel" aria-labelledby="available-profiles-tab">
                         <h4>Available profiles</h4>

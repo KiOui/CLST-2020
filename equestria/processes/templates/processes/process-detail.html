@@ -15,24 +15,29 @@
 
 {% block body %}
     <div class="container">
-        <div class="row">
+        <div class="row" id="process-detail-container">
             <div class="col-md-7">
                 <h1>{% if process.script == process.project.pipeline.fa_script %}Forced Alignment{% else %}G2P{% endif %} progress</h1>
-                <p>Status: <span id="process-django-status" class="font-weight-bold"></span></p>
+                <p>Status: <span id="process-django-status" class="font-weight-bold"><% process_detail.status_string %></span></p>
                 {% if process.script == process.project.pipeline.fa_script %}
-                    <div style="display: none;" class="btn btn-primary" id="process-continue-button"
+                    <div v-if="process_detail.status == 5" class="btn btn-primary" id="process-continue-button"
                          onclick="update_and_callback_no_data('/api/v1/processes/settings/{{ process.project.id }}/{{ process.project.pipeline.g2p_script.id }}/configure-automatically', {}, try_g2p_start, method = 'POST')"
                     >Continue</div>
                 {% else %}
-                    <a href="{% url 'projects:cd_screen' project=process.project %}" style="display: none;" class="btn btn-primary" id="process-continue-button">Continue</a>
+                    <a v-if="process_detail.status == 5" href="{% url 'projects:cd_screen' project=process.project %}" class="btn btn-primary" id="process-continue-button">Continue</a>
                 {% endif %}
             </div>
             <div class="col-md-1">
             </div>
             <div class="col-md-4 rounded lighter padding">
                 <h3>Console Output</h3>
-                <div class="p-3">
-                    <div id="console_output"></div>
+                <div class="p-1">
+                    <div id="console_output">
+                        <div class="mw-100" v-for="log_message in process_detail.log_messages">
+                            <div class="log-message-time" v-if="log_message.time"><% log_message.time %></div>
+                            <div class="log-message-message"><% log_message.message %></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -41,12 +46,25 @@
 
 {% block scripts %}
     <script>
-        let PROCESS_STATUS_URL = "{% url 'v1:process-retrieve' pk=process.pk %}";
         let project_id = '{{ project.id }}';
+        let process_detail_vue = new Vue({
+            el: '#process-detail-container',
+            delimiters: ['<%', '%>'],
+            data: {
+                process_detail: []
+            },
+            created() {
+                fetch('{% url 'v1:process-retrieve' pk=process.pk %}')
+                    .then(response => response.json())
+                    .then(json => {
+                        this.process_detail = json;
+                    });
+            }
+        });
         {% if process.script == process.project.pipeline.fa_script %}
             let next_script_id = '{{ project.pipeline.g2p_script.id }}';
         {% endif %}
+        add_update_list(send_update_request, ["{% url 'v1:process-retrieve' pk=process.pk %}", function(data) {process_detail_vue.process_detail = data;}, "GET"]);
     </script>
-    <script src="{% static "processes/js/process-update.js" %}"></script>
     <script src="{% static "processes/js/start-g2p-automatically.js" %}"></script>
 {% endblock %}

@@ -11,15 +11,22 @@
 
 {% block body %}
     <div class="container">
-        <div class="col rounded lighter padding">
+        <div class="col rounded lighter padding" id="check-dictionary-container">
             <h1>Check dictionary</h1>
-            <div id="check-dictionary-container">
-                <select @input="change-selected-textarea()" id="check-dictionary-select">
+            <div>
+                <select v-model="selected_textarea" id="check-dictionary-select">
                     <option v-for="file in files" :value="file.id"><% file.filename %></option>
                 </select>
-                <textarea class="w-100" rows="20" v-model="file.content" v-for="file in files" :id="file.id" :value="file.content"></textarea>
+                <textarea v-show="file.id === selected_textarea" class="w-100" rows="20" v-model="file.content" v-for="file in files" :id="file.id" :value="file.content"></textarea>
             </div>
-            <div class="btn btn-success" onclick="update_dictionary_containers()">Save files</div>
+
+            <template v-if="loading">
+                <div class="btn btn-success disabled">Save files <span class="loader"></span></div>
+            </template>
+            <template v-else>
+                <div class="btn btn-success" onclick="update_dictionary_containers()">Save files</div>
+            </template>
+
             <a class="btn btn-primary btn-style" href="{% url 'projects:fa_overview' project=project %}">Continue to FA overview</a>
         </div>
     </div>
@@ -35,13 +42,16 @@
             el: '#check-dictionary-container',
             delimiters: ['<%', '%>'],
             data: {
-                files: []
+                files: [],
+                selected_textarea: null,
+                loading: false,
             },
             created() {
                 fetch('{% url 'v1:dictionary-get-update' project=project %}')
                     .then(response => response.json())
                     .then(json => {
                         this.files = json.files;
+                        this.selected_textarea = json.files.length > 0 ? json.files[0].id : null;
                     });
             },
         });

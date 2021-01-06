@@ -26,7 +26,7 @@
                 <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Go back to upload files</a>
                 <a class="btn btn-primary" href="{% url 'projects:cd_screen' project=project %}">Go back to alter dictionary</a>
                 <a class="btn btn-primary" href="{% url 'v1:project-archive-download' project=project %}">Download project archive</a>
-                <a class="btn btn-danger" href="{% url "scripts:delete_project" project=project %}">Delete project</a>
+                <a class="btn btn-danger" href="{% url "projects:delete_project" project=project %}">Delete project</a>
             </div>
         </div>
     </div>
