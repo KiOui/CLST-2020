@@ -5,7 +5,7 @@ description = "A web-based collection of forced-alignment tools"
 authors = ["GiPHouse <unknown@unknown.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.9"
 django = "^3.0.3"
 pillow = "^7.0.0"
 requests = "^2.23.0"
