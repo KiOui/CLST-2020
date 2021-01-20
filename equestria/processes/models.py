@@ -7,10 +7,11 @@ import shutil
 import xml.etree.ElementTree as ET
 import zipfile
 
-from clam.common import status
 import pytz
+from clam.common import status
 from django.conf import settings
 from django.db import models
+from processes.tasks import update_script
 from projects.models import File, Project
 from scripts.models import (
     Script,
@@ -19,7 +20,6 @@ from scripts.models import (
     Profile,
     OutputTemplate,
 )
-from processes.tasks import update_script
 
 
 class Process(models.Model):
@@ -54,17 +54,45 @@ class Process(models.Model):
     )
 
     script = models.ForeignKey(
-        Script, on_delete=models.CASCADE, blank=False, null=False
+        Script,
+        on_delete=models.CASCADE,
+        blank=False,
+        null=False,
+        help_text="The Script for which this Process is " "being ran.",
     )
     project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, blank=False, null=False
+        Project,
+        on_delete=models.CASCADE,
+        blank=False,
+        null=False,
+        help_text="The Project for which this Process is" "being ran.",
     )
-    clam_id = models.CharField(max_length=256, null=True, default=None)
-    status = models.IntegerField(choices=STATUS, default=0)
+    clam_id = models.CharField(
+        max_length=256,
+        null=True,
+        default=None,
+        help_text="The CLAM Project name that is being "
+        "used on the CLAM server to run this "
+        "Process.",
+    )
+    status = models.IntegerField(
+        choices=STATUS,
+        default=0,
+        help_text="The current status of this Process. This will "
+        "be automatically mirrored with the CLAM server.",
+    )
     folder = models.FilePathField(
-        allow_folders=True, allow_files=False, path="media/processes"
+        allow_folders=True,
+        allow_files=False,
+        path="media/processes",
+        help_text="The folder to write all output files " "of this Process to.",
     )
-    created = models.DateTimeField(auto_now_add=True, null=False, blank=False)
+    created = models.DateTimeField(
+        auto_now_add=True,
+        null=False,
+        blank=False,
+        help_text="The time that this Process " "was created.",
+    )
 
     def __str__(self):
         """Convert this object to string."""
@@ -412,19 +440,32 @@ class Process(models.Model):
 class LogMessage(models.Model):
     """Class for saving CLAM log messages."""
 
-    time = models.DateTimeField(null=True)
-    message = models.CharField(max_length=16384)
-    process = models.ForeignKey(
-        Process, on_delete=models.CASCADE, null=False, blank=False
+    time = models.DateTimeField(
+        null=True, help_text="The time of the log message."
     )
-    index = models.PositiveIntegerField()
+    message = models.CharField(max_length=16384, help_text="The log message.")
+    process = models.ForeignKey(
+        Process,
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        help_text="The process for which this log message " "is.",
+    )
+    index = models.PositiveIntegerField(
+        help_text="The index of the log message. Log messages will be sorted on their"
+        " index."
+    )
 
 
 class FileSetting(models.Model):
     """Class for adding Files to InputTemplates."""
 
     file = models.ForeignKey(
-        File, on_delete=models.CASCADE, null=False, blank=False
+        File,
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        help_text="The file for which this file setting is " "specified.",
     )
     input_template = models.ForeignKey(
         InputTemplate,
@@ -432,6 +473,7 @@ class FileSetting(models.Model):
         on_delete=models.CASCADE,
         null=False,
         blank=False,
+        help_text="The Input Template to register the File Setting for.",
     )
 
     @staticmethod
@@ -501,16 +543,24 @@ class ParameterSetting(models.Model):
 
         pass
 
-    _value = models.CharField(max_length=1024)
+    _value = models.CharField(
+        max_length=1024,
+        help_text="The value of the Parameter Setting in string format.",
+    )
     base_parameter = models.ForeignKey(
         BaseParameter,
         related_name="parameter_setting",
         on_delete=models.CASCADE,
         null=False,
         blank=False,
+        help_text="The Base Parameter to register the Parameter Setting for.",
     )
     project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, null=False, blank=False
+        Project,
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Project for which to register the " "Parameter Setting.",
     )
 
     @property
@@ -618,11 +668,36 @@ class ParameterSetting(models.Model):
 class FilePreset(models.Model):
     """File presets."""
 
-    name = models.CharField(max_length=1024, null=False, blank=False)
-    input_template = models.ForeignKey(
-        InputTemplate, on_delete=models.CASCADE, null=False, blank=False
+    name = models.CharField(
+        max_length=1024,
+        null=False,
+        blank=False,
+        help_text="The name of the File Preset, only "
+        "used for distinguishing different File "
+        "Presets",
     )
-    regex = models.CharField(max_length=1024, null=False, blank=False)
+    input_template = models.ForeignKey(
+        InputTemplate,
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Input template for which to "
+        "register the File Preset. When "
+        "automatic configuration of File "
+        "Settings is being ran by a User, "
+        "all File Presets of an Input "
+        "template will try to match files in"
+        " the corresponding Project. If one"
+        " matches it will be created as a"
+        " File Setting.",
+    )
+    regex = models.CharField(
+        max_length=1024,
+        null=False,
+        blank=False,
+        help_text="The regular expression to use when "
+        "matching file names of a Project.",
+    )
 
     def __init__(self, *args, **kwargs):
         """Initialize file preset."""

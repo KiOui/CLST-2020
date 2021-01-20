@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "background_task",
     "scripts",
     "pipelines",
+    "explainer",
     "projects",
     "accounts",
     "processes",

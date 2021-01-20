@@ -26,14 +26,38 @@ class Script(Model):
         description                   Documentation of the purpose of the script.
     """
 
-    name = CharField(max_length=512, blank=False, null=False)
+    name = CharField(
+        max_length=512,
+        blank=False,
+        null=False,
+        help_text="The name of the script, used for " "identification only.",
+    )
 
-    hostname = URLField(blank=False, null=False)
+    hostname = URLField(
+        blank=False,
+        null=False,
+        help_text="The full URL where the CLAM server for this Script is "
+        "accessible.",
+    )
 
-    description = TextField(max_length=32768, blank=True)
+    description = TextField(
+        max_length=32768,
+        blank=True,
+        help_text="The description of this Script.",
+    )
 
-    username = CharField(max_length=200, blank=True)
-    password = CharField(max_length=200, blank=True)
+    username = CharField(
+        max_length=200,
+        blank=True,
+        help_text="If the CLAM server requires authentication, enter the "
+        "username for the authentication here.",
+    )
+    password = CharField(
+        max_length=200,
+        blank=True,
+        help_text="If the CLAM server requires authentication, enter the "
+        "password for the authentication here.",
+    )
 
     @staticmethod
     def get_random_clam_id():
@@ -298,7 +322,7 @@ class Profile(Model):
 
     A profile is a set of InputTemplates (possibly more later on)
     Attributes:
-        process                 The process associated with this profile.
+        script                 The script associated with this profile.
     """
 
     script = ForeignKey(
@@ -307,6 +331,7 @@ class Profile(Model):
         on_delete=CASCADE,
         null=False,
         blank=False,
+        help_text="The Script this Profile belongs to.",
     )
 
     def __str__(self):
@@ -357,20 +382,46 @@ class InputTemplate(Model):
         corresponding_profile   The corresponding profile of this input template.
     """
 
-    template_id = CharField(max_length=1024)
-    format = CharField(max_length=1024)
-    label = CharField(max_length=1024)
-    mime = CharField(max_length=1024, default="text/plain")
-    extension = CharField(max_length=32)
-    optional = BooleanField()
-    unique = BooleanField()
-    accept_archive = BooleanField()
+    template_id = CharField(
+        max_length=1024,
+        help_text="Template ID as mirrored from the CLAM server.",
+    )
+    format = CharField(
+        max_length=1024,
+        help_text="CLAM format as mirrored from the CLAM server.",
+    )
+    label = CharField(
+        max_length=1024,
+        help_text="Label used for describing what files to select for this Input "
+        "template",
+    )
+    mime = CharField(
+        max_length=1024,
+        default="text/plain",
+        help_text="The mime class used for files selected for "
+        "this Input template.",
+    )
+    extension = CharField(
+        max_length=32,
+        help_text="The preferred extension a file should have when it is selected "
+        "to be used for this Input template.",
+    )
+    optional = BooleanField(
+        help_text="Whether or not this Input template is optional."
+    )
+    unique = BooleanField(
+        help_text="Whether or not multiple files could be uploaded for this Input template."
+    )
+    accept_archive = BooleanField(
+        help_text="Whether or not this Input template accepts archives."
+    )
     corresponding_profile = ForeignKey(
         Profile,
         related_name="input_templates",
         on_delete=CASCADE,
         null=False,
         blank=False,
+        help_text="The Profile associated with this Input template.",
     )
 
     def __str__(self):
@@ -410,11 +461,36 @@ class InputTemplate(Model):
 
 
 class OutputTemplate(Model):
-    """OutputTemplate model."""
+    """
+    OutputTemplate model.
 
-    name = CharField(max_length=1024, null=False, blank=False)
-    script = ForeignKey(Script, on_delete=CASCADE, null=False, blank=False)
-    regex = CharField(max_length=1024, null=False, blank=False)
+    Output templates are used when a Process finishes running. By default, no files that a Process outputs are copied
+    over to the Project. Only files with file names that match an Output template will be copied over to the Project
+    directory.
+    """
+
+    name = CharField(
+        max_length=1024,
+        null=False,
+        blank=False,
+        help_text="A name used for identification of an Output" " template.",
+    )
+    script = ForeignKey(
+        Script,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Script corresponding to" " this Output template.",
+    )
+    regex = CharField(
+        max_length=1024,
+        null=False,
+        blank=False,
+        help_text="The regular expression to use when "
+        "matching output file names of processes. "
+        "Matching output files will be copied over to"
+        " the Project directory.",
+    )
 
     def __init__(self, *args, **kwargs):
         """Initialise OutputTemplate model."""
@@ -463,16 +539,32 @@ class BaseParameter(Model):
         (FLOAT_TYPE, "Float"),
     )
 
-    name = CharField(max_length=1024)
+    name = CharField(
+        max_length=1024,
+        help_text="Identifier for a Base Parameter. This is set automatically when "
+        "synchronizing with a CLAM server.",
+    )
     corresponding_script = ForeignKey(
         Script,
         related_name="parameters",
         on_delete=CASCADE,
         null=False,
         blank=False,
+        help_text="The Script this Parameter belongs to.",
     )
-    preset = BooleanField(default=False)
-    type = IntegerField(choices=TYPES)
+    preset = BooleanField(
+        default=False,
+        help_text="Whether or not this Parameter can be set by Users themselves. When "
+        "this is False, Users will be able to set this Parameter themselves"
+        " when running Processes. When this is True a value for this "
+        "parameter should be specified in one of the fields below.",
+    )
+    type = IntegerField(
+        choices=TYPES,
+        help_text="Indicates what the type is of this Parameter. When specifying a "
+        "preset you should enter the value of the Parameter within the right "
+        "typed field below.",
+    )
 
     @staticmethod
     def get_type(parameter):
@@ -606,9 +698,18 @@ class BooleanParameter(Model):
     """Parameter for boolean values."""
 
     base = OneToOneField(
-        BaseParameter, on_delete=CASCADE, null=False, blank=False
+        BaseParameter,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Base parameter this typed parameter " "belongs to.",
     )
-    value = BooleanField(default=False, null=True, blank=True)
+    value = BooleanField(
+        default=False,
+        null=True,
+        blank=True,
+        help_text="The boolean value for this parameter.",
+    )
 
     def get_value(self):
         """
@@ -648,9 +749,18 @@ class StaticParameter(Model):
     """Parameter for static values."""
 
     base = OneToOneField(
-        BaseParameter, on_delete=CASCADE, null=False, blank=False
+        BaseParameter,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Base parameter this typed parameter " "belongs to.",
     )
-    value = CharField(max_length=2048, null=True, blank=True)
+    value = CharField(
+        max_length=2048,
+        null=True,
+        blank=True,
+        help_text="The static value for this parameter.",
+    )
 
     def get_value(self):
         """
@@ -687,9 +797,18 @@ class StringParameter(Model):
     """Parameter for string values."""
 
     base = OneToOneField(
-        BaseParameter, on_delete=CASCADE, null=False, blank=False
+        BaseParameter,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Base parameter this typed parameter " "belongs to.",
     )
-    value = CharField(max_length=2048, null=True, blank=True)
+    value = CharField(
+        max_length=2048,
+        null=True,
+        blank=True,
+        help_text="The string value for this parameter.",
+    )
 
     def get_value(self):
         """
@@ -729,9 +848,13 @@ class Choice(Model):
     """Model for choices in ChoiceParameter."""
 
     corresponding_choice_parameter = ForeignKey(
-        "ChoiceParameter", on_delete=CASCADE, null=False, blank=False
+        "ChoiceParameter",
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Choice parameter the Choice " "belongs to.",
     )
-    value = CharField(max_length=2048)
+    value = CharField(max_length=2048, help_text="The value of a choice.")
 
     def get_value(self):
         """
@@ -768,9 +891,19 @@ class ChoiceParameter(Model):
     """Parameter for choice values."""
 
     base = OneToOneField(
-        BaseParameter, on_delete=CASCADE, null=False, blank=False
+        BaseParameter,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Base parameter this typed parameter " "belongs to.",
     )
-    value = ForeignKey(Choice, on_delete=SET_NULL, null=True, blank=True)
+    value = ForeignKey(
+        Choice,
+        on_delete=SET_NULL,
+        null=True,
+        blank=True,
+        help_text="The choice value for this " "parameter.",
+    )
 
     def get_value(self):
         """
@@ -844,9 +977,15 @@ class TextParameter(Model):
     """Parameter for text values."""
 
     base = OneToOneField(
-        BaseParameter, on_delete=CASCADE, null=False, blank=False
+        BaseParameter,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Base parameter this typed parameter " "belongs to.",
     )
-    value = TextField(null=True, blank=True)
+    value = TextField(
+        null=True, blank=True, help_text="The text value for this parameter."
+    )
 
     def get_value(self):
         """
@@ -886,9 +1025,15 @@ class IntegerParameter(Model):
     """Parameter for integer values."""
 
     base = OneToOneField(
-        BaseParameter, on_delete=CASCADE, null=False, blank=False
+        BaseParameter,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Base parameter this typed parameter " "belongs to.",
     )
-    value = IntegerField(null=True, blank=True)
+    value = IntegerField(
+        null=True, blank=True, help_text="The integer value for this parameter."
+    )
 
     def get_value(self):
         """
@@ -928,9 +1073,15 @@ class FloatParameter(Model):
     """Parameter for float values."""
 
     base = OneToOneField(
-        BaseParameter, on_delete=CASCADE, null=False, blank=False
+        BaseParameter,
+        on_delete=CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Base parameter this typed parameter " "belongs to.",
     )
-    value = FloatField(null=True, blank=True)
+    value = FloatField(
+        null=True, blank=True, help_text="The float value for this parameter."
+    )
 
     def get_value(self):
         """
