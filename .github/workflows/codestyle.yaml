@@ -7,9 +7,6 @@ jobs:
   lint_and_test:
     name: "Linting"
     runs-on: "ubuntu-latest"
-    strategy:
-      matrix:
-        python-version: [3.9]
     steps:
 
     - name: "Checkout the repository"
