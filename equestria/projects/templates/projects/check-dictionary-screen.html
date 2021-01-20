@@ -13,21 +13,37 @@
     <div class="container">
         <div class="col rounded lighter padding" id="check-dictionary-container">
             <h1>Check dictionary</h1>
-            <div>
-                <select v-model="selected_textarea" id="check-dictionary-select">
-                    <option v-for="file in files" :value="file.id"><% file.filename %></option>
-                </select>
-                <textarea v-show="file.id === selected_textarea" class="w-100" rows="20" v-model="file.content" v-for="file in files" :id="file.id" :value="file.content"></textarea>
-            </div>
-
-            <template v-if="loading">
-                <div class="btn btn-success disabled">Save files <span class="loader"></span></div>
+            <template v-if="files.length > 0">
+                <p>
+                    This page allows you to edit the dictionary files within the project. You can select a dictionary
+                    file below and edit its contents in the textbox. Be sure to hit the Save button when you are done
+                    editing.
+                </p>
+                <div>
+                    <select v-model="selected_textarea" id="check-dictionary-select">
+                        <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    </select>
+                    <textarea v-show="file.id === selected_textarea" class="w-100" rows="20" v-model="file.content" v-for="file in files" :id="file.id" :value="file.content"></textarea>
+                </div>
+                <template v-if="loading">
+                    <div class="btn btn-success disabled">Save files <span class="loader"></span></div>
+                </template>
+                <template v-else>
+                    <div class="btn btn-success" onclick="update_dictionary_containers()">Save files <i class="fas fa-cloud-upload-alt"></i></div>
+                </template>
             </template>
             <template v-else>
-                <div class="btn btn-success" onclick="update_dictionary_containers()">Save files</div>
+                <p class="alert alert-warning">
+                    We could not find any dictionary files in your project. This could be because G2P has not finished
+                    yet or because your FA finished without any missing words. You can continue or restart FA below.
+                </p>
             </template>
-            <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Restart FA with different settings</a>
-            <a class="btn btn-primary" href="{% url 'projects:fa_overview' project=project %}">Continue to FA overview</a>
+            <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">
+                Restart FA with different settings <i class="fas fa-undo"></i>
+            </a>
+            <a class="btn btn-primary" href="{% url 'projects:fa_overview' project=project %}">
+                Continue to FA overview <i class="fas fa-arrow-right"></i>
+            </a>
         </div>
     </div>
 {% endblock %}
