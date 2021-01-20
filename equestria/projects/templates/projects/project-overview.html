@@ -25,8 +25,12 @@
                         {% for project in projects %}
                             <div class="d-flex flex-row mb-1">
                                 <span class="flex-grow-1"><strong>{{ project.name }}</strong></span>
-                                <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">Continue</a>
-                                <a class="btn btn-danger ml-1" href="{% url "projects:delete_project" project=project %}">Delete</a>
+                                <a class="btn btn-primary" href="{% url 'projects:project_detail' project=project %}">
+                                    Continue <i class="far fa-arrow-alt-circle-right"></i>
+                                </a>
+                                <a class="btn btn-danger ml-1" href="{% url "projects:delete_project" project=project %}">
+                                    Delete <i class="fas fa-trash"></i>
+                                </a>
                             </div>
                         {% endfor %}
                         </div>
@@ -46,7 +50,9 @@
                             {% csrf_token %}
                             <div class="mb-3">
                                 {{ form.as_p }}
-                                <input type="submit" value="Create project" class="btn btn-primary"/>
+                                <button type="submit" class="btn btn-primary">
+                                    Create project <i class="fas fa-plus"></i>
+                                </button>
                             </div>
                         </form>
                     </div>

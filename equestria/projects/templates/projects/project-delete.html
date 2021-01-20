@@ -14,9 +14,11 @@
                 <p>All contents of the project will be removed</p>
                 <form method="POST">
                     {% csrf_token %}
-                    <input type="submit" value="Delete {{ project.name }}" class="btn btn-danger w-auto"/>
-                    <a class="btn btn-primary" href="{% url 'v1:project-archive-download' project=project %}">Download project archive</a>
-                    <a href="{% url "projects:overview" %}" class="btn btn-primary">Back</a>
+                    <a href="{% url "projects:overview" %}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Back</a>
+                    <button type="submit" class="btn btn-danger w-auto">
+                        <i class="fas fa-trash"></i> Delete {{ project.name }}
+                    </button>
+                    <a class="btn btn-success" href="{% url 'v1:project-archive-download' project=project %}">Download project archive <i class="fas fa-download"></i></a>
                 </form>
             </div>
         </div>
