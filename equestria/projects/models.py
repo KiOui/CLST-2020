@@ -21,27 +21,22 @@ def project_folder_path(instance, filename):
 class Project(models.Model):
     """Project model class."""
 
-    UPLOADING = 0
-    FA_RUNNING = 1
-    G2P_RUNNING = 2
-    CHECK_DICTIONARY = 3
-
-    TYPES = (
-        (UPLOADING, "Uploading"),
-        (FA_RUNNING, "FA running"),
-        (G2P_RUNNING, "G2P running"),
-        (CHECK_DICTIONARY, "Check dictionary"),
+    name = models.CharField(
+        max_length=512, help_text="The name of the Project."
     )
-
-    EXTRACT_FOLDER = "extract"
-    OUTPUT_FOLDER = "output"
-
-    name = models.CharField(max_length=512)
     pipeline = models.ForeignKey(
-        Pipeline, on_delete=models.CASCADE, blank=False, null=False
+        Pipeline,
+        on_delete=models.CASCADE,
+        blank=False,
+        null=False,
+        help_text="The Pipeline this Project belongs to.",
     )
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, null=False, blank=False
+        User,
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        help_text="The User this Project belongs to.",
     )
 
     @property
@@ -179,10 +174,18 @@ class File(models.Model):
     """File class for project."""
 
     project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, blank=False, null=False
+        Project,
+        on_delete=models.CASCADE,
+        blank=False,
+        null=False,
+        help_text="The Project this file belongs to.",
     )
     file = models.FileField(
-        upload_to=project_folder_path, blank=False, null=False, unique=True
+        upload_to=project_folder_path,
+        blank=False,
+        null=False,
+        unique=True,
+        help_text="The file.",
     )
 
     @property

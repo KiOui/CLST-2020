@@ -43,25 +43,26 @@
                 </a>
             </li>
             <li class="nav-item dropdown pull-right">
-            <a class="nav-link dropdown-toggle" href="#" id="navbarAccountMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <i class="fas fa-user"></i>
-            </a>
-            {% if user.is_authenticated %}
-                <div class="dropdown-menu" aria-labelledby="navbarAccountMenuLink">
-                    {% if user.is_staff %}
-                        <a class="dropdown-item" href="{% url 'admin:index' %}">Site admin</a>
-                    {% endif %}
-                    <a class="dropdown-item" href="{% url "projects:overview" %}">My projects</a>
-                    <a class="dropdown-item" href="{% url "accounts:password" %}">Change password</a>
-                    <a class="dropdown-item" href="{% url 'accounts:logout' %}">Log out</a>
-                </div>
-            {% else %}
-                <div class="dropdown-menu" aria-labelledby="navbarAccountMenuLink">
-                    <a class="dropdown-item" href="{% url 'accounts:login' %}">Log in</a>
-                    <a class="dropdown-item" href="{% url "accounts:forgot" %}">Forgot password</a>
-                </div>
-            {% endif %}
+                <a class="nav-link dropdown-toggle" href="#" id="navbarAccountMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-user"></i>
+                </a>
+                {% if user.is_authenticated %}
+                    <div class="dropdown-menu" aria-labelledby="navbarAccountMenuLink">
+                        {% if user.is_staff %}
+                            <a class="dropdown-item" href="{% url 'admin:index' %}">Site admin</a>
+                        {% endif %}
+                        <a class="dropdown-item" href="{% url "projects:overview" %}">My projects</a>
+                        <a class="dropdown-item" href="{% url "accounts:password" %}">Change password</a>
+                        <a class="dropdown-item" href="{% url 'accounts:logout' %}">Log out</a>
+                    </div>
+                {% else %}
+                    <div class="dropdown-menu" aria-labelledby="navbarAccountMenuLink">
+                        <a class="dropdown-item" href="{% url 'accounts:login' %}">Log in</a>
+                        <a class="dropdown-item" href="{% url "accounts:forgot" %}">Forgot password</a>
+                    </div>
+                {% endif %}
+            </li>
         </ul>
     </div>
-	<a href="https://centre-for-language-speech-technology.github.io/CLST-2020/Student-Use-Case.html" class="btn btn-primary">Help</a>
+	<a href="{% url 'explainer:students' %}" class="btn btn-primary">Help</a>
 </nav>
