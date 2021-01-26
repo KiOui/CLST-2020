@@ -7,7 +7,7 @@
     <div class="profile-select mb-4">
         <label for="profile-selector">Profile</label>
         <select class="w-100" id="profile-selector" v-model="selected_profile">
-            <option v-for="profile in process_settings.profiles" :value="`${profile.id}`">Profile <% profile.id %></option>
+            <option v-for="profile in process_settings.profiles" :value="`${profile.id}`"><% profile.name %></option>
         </select>
         <p class="form-description">The profile you want to run {{ script_type }} for.</p>
     </div>
@@ -18,17 +18,37 @@
                 <label v-else :for="`file-selector-${template.id}`" class="form-label"><% template.template_id %></label>
                 <select v-if="template.unique && template.optional" v-model="template.files" :value="template.files" class="w-100 file-selector" :id="`file-selector-${template.id}`">
                     <option value="null">----------</option>
-                    <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    <template v-if="template.preferable_files.length > 0">
+                        <option v-for="file in template.preferable_files" :value="file.id"><% file.filename %></option>
+                    </template>
+                    <template v-else>
+                        <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    </template>
                 </select>
                 <select v-else-if="template.unique && !template.optional" v-model="template.files" :value="template.files" required class="w-100 file-selector" :id="`file-selector-${template.id}`">
-                    <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    <template v-if="template.preferable_files.length > 0">
+                        <option v-for="file in template.preferable_files" :value="file.id"><% file.filename %></option>
+                    </template>
+                    <template v-else>
+                        <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    </template>
                 </select>
                 <select v-else-if="!template.unique && template.optional" v-model="template.files" :value="template.files" multiple class="w-100 file-selector" :id="`file-selector-${template.id}`">
                     <option value="null">----------</option>
-                    <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    <template v-if="template.preferable_files.length > 0">
+                        <option v-for="file in template.preferable_files" :value="file.id"><% file.filename %></option>
+                    </template>
+                    <template v-else>
+                        <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    </template>
                 </select>
                 <select v-else v-model="template.files" :value="template.files" multiple required class="w-100 file-selector" :id="`file-selector-${template.id}`">
-                    <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    <template v-if="template.preferable_files.length > 0">
+                        <option v-for="file in template.preferable_files" :value="file.id"><% file.filename %></option>
+                    </template>
+                    <template v-else>
+                        <option v-for="file in files" :value="file.id"><% file.filename %></option>
+                    </template>
                 </select>
                 <p class="form-description"><% template.label %></p>
             </div>
@@ -51,14 +71,9 @@
         </form>
     </div>
     <template v-if="loading">
-        <div class="btn btn-success disabled mt-2 w-100" id="configure-automatically-button">Configure file settings automatically <span class="loader"></span></div>
         <div class="btn btn-primary disabled mt-2 w-100" id="start-button">Start {{ script_type }} <span class="loader"></span></div>
     </template>
     <template v-else>
-        <div class="btn btn-success mt-2 w-100" id="configure-automatically-button" onclick="process_configure_vue.loading = true; update_and_callback_no_data(
-            '{% if script_type == "FA" %}{% url "v1:configure-automatically" project=project script=project.pipeline.fa_script %}{% else %}{% url "v1:configure-automatically" project=project script=project.pipeline.g2p_script %}{% endif %}', {}, update_update_list, method = 'POST')">
-            Configure file settings automatically <i class="fas fa-cog"></i>
-        </div>
         <div class="btn btn-primary mt-2 w-100" id="start-button" onclick="start_process()">
             Start {{ script_type }} <i class="fas fa-play-circle"></i>
         </div>

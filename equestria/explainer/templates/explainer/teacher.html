@@ -62,8 +62,6 @@
             can be edited under this model.</li>
             <li><strong>Input templates</strong>: Input templates are settings for one file of a Profile. Input
             templates are connected to Profiles.</li>
-            <li><strong>Output templates</strong>: With Output templates you can select which files of the output
-            of a script must end up in the users project directory.</li>
             <li><strong>Parameters</strong>: Parameters can be defined if a CLAM server requires them. These can be used
             to, for example, set the language for a G2P script.</li>
             <li><strong>Profiles</strong>: Profiles specify which files should be uploaded before starting a script on
@@ -138,10 +136,9 @@
             the Output templates settings.
         </p>
         <p>
-            Specifying an output template is easy and requires three things, a name so it is easily recognizable in the
-            future (such as "all log files"). A Script the output template belongs to, when a Process of that Script
-            finishes, all output files corresponding to at least one template will be copied over to the project that
-            started the process. The last thing that must be specified is a regular expressing (regex), more information
+            Specifying an output template is easy and can be done on the script admin page. Go to the admin page of a
+            Script and find "Output templates" in one of the sections. You can add or remove output templates here.
+            Output template specification works with regular expressions (regexes), more information
             about regular expressions can be found <a href="https://en.wikipedia.org/wiki/Regular_expression">here</a>.
             When a Process finishes, all regular expressions of the Output templates corresponding to the Script of the
             Process will be matched against the file names of the output files. If a file name matches one of the
@@ -152,6 +149,29 @@
             <li><code>g2p_problematic_words.dict</code>: This regular expression matches files with filename
                 <code>g2p_problematic_words.dict</code></li>
         </ul>
+        <h3>Configuring Input Template</h3>
+        <p>
+            Each input template represents one file or set of files that can be uploaded to a CLAM server. There are
+            two things that should be changed about input templates, the File Presets and Preferable files. Both can
+            be edited within the admin screen of an Input Template.
+        </p>
+        <h4>File presets</h4>
+        <p>
+            With File Presets
+            you can do even more and connect specific files to specific Input Templates. As an example, consider the
+            input of the G2P process which is a <code>.txt</code> file. When a student is running a Pipeline, there
+            could be multiple <code>.txt</code> files within a Project and the automatic configuration tool will thus
+            fail as there are multiple <code>.txt</code> files and any could be used to run the G2P process. To
+            circumvent this we could specify a specific regular expression that should be treated as a preference for
+            a specific Input template. We could thus specify as a regular expression that
+            <code>g2p_problematic_words.txt</code> should always be used as an input for the G2P process.
+        </p>
+        <h4>Preferable files</h4>
+        <p>
+            Preferable files are files that should show up under this input template. You can for example specify that
+            only <code>.wav</code> files should be displayed under the selection box for starting a new Process by
+            adding a regex that allows <code>.wav</code> files under the Preferable files tab.
+        </p>
         <h2>The Projects application</h2>
         <p>
             The Projects application in the administrator dashboard can be used to get an overview of all the Projects
@@ -161,18 +181,7 @@
         <h2>The Processes application</h2>
         <p>
             The Processes application includes all necessary features to manage Processes. A Process is created for
-            each Script that a User runs. The only thing that could be set up in the Processes application is File
-            Presets. As stated in the <a href="{% url 'explainer:students' %}">Student explainer</a>, Forced Alignment
-            can be configured automatically using the
-            <button type="button" class="btn btn-success">Configure file settings automatically</button> button. This
-            button tries to match file extensions to the extensions provided in the Input templates. With File Presets
-            you can do even more and connect specific files to specific Input Templates. As an example, consider the
-            input of the G2P process which is a <code>.txt</code> file. When a student is running a Pipeline, there
-            could be multiple <code>.txt</code> files within a Project and the automatic configuration tool will thus
-            fail as there are multiple <code>.txt</code> files and any could be used to run the G2P process. To
-            circumvent this we could specify a specific regular expression that should be treated as a preference for
-            a specific Input template. We could thus specify as a regular expression that
-            <code>g2p_problematic_words.txt</code> should always be used as an input for the G2P process.
+            each Script that a User runs.
         </p>
         <h2>The Pipelines application</h2>
         <p>
@@ -180,5 +189,13 @@
             Forced Alignment script to a Grapheme to Phoneme script and give it a name. Users can create Projects for
             a Pipeline.
         </p>
+        <h3>Dictionary file formats</h3>
+        <p>
+            Within the admin screen of a Pipeline, there is the ability to change which files are displayed on the
+            Check dictionary screen. This works in the same way as Output Templates do by specifying regexes. Files
+            matching one of the regexes will be displayed on the Check dictionary screen.
+        </p>
+        <hr>
+        <p style="color: grey;">This page was last updated on 26-01-2021</p>
     </div>
 {% endblock %}

@@ -7,7 +7,7 @@ from scripts.models import Profile
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
-from pipelines.models import Pipeline
+from pipelines.models import Pipeline, DictionaryFileFormat
 from .services import remove_files_from_directory
 
 User = get_user_model()
@@ -63,10 +63,6 @@ class Project(models.Model):
         """Get all files in of this project."""
         return File.objects.filter(project=self)
 
-    def get_files_with_extension(self, extension):
-        """Get all files in this project with an extension."""
-        return [x for x in self.files if x.extension == extension]
-
     def save(self, *args, **kwargs):
         """Save project."""
         Path(self.absolute_path).mkdir(parents=True, exist_ok=True)
@@ -79,7 +75,16 @@ class Project(models.Model):
 
     def get_dictionary_files(self):
         """Get all dictionary files in this project (files ending with .dict)."""
-        return self.get_files_with_extension("dict")
+        dictionary_file_formats = DictionaryFileFormat.objects.filter(
+            pipeline=self.pipeline
+        )
+        return [
+            x
+            for x in self.files
+            if DictionaryFileFormat.match_any(
+                x.filename, dictionary_file_formats
+            )
+        ]
 
     def __str__(self):
         """Convert this object to string."""

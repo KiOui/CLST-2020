@@ -2,11 +2,14 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 from scripts import models
 from .forms import ChoiceParameterAdminForm
 from nested_inline.admin import NestedStackedInline, NestedModelAdmin
 from django.contrib import messages
 from scripts.forms import OutputTemplateAdminForm
+from processes.admin import FileDisplayRegexInline, FilePresetInline
 
 
 class BooleanParameterInline(NestedStackedInline):
@@ -86,6 +89,20 @@ class ProfileInline(NestedStackedInline):
 
     model = models.Profile
     extra = 0
+    readonly_fields = ("admin_page",)
+    exclude = ["name"]
+
+    def admin_page(self, obj):
+        """Get a link to the admin page."""
+        if obj.id is None:
+            return mark_safe(
+                '<a class="disabled">Can not edit, please save model first</a>'
+            )
+        return mark_safe(
+            '<a href="{}">Click to edit</a>'.format(
+                reverse("admin:scripts_profile_change", args=(obj.id,))
+            )
+        )
 
 
 class BaseParameterInline(admin.StackedInline):
@@ -94,15 +111,37 @@ class BaseParameterInline(admin.StackedInline):
     model = models.BaseParameter
     extra = 0
     inlines = []
+    readonly_fields = ("admin_page",)
+    exclude = ["name", "preset", "type"]
 
-    exclude = ["name", "type", "preset"]
+    def admin_page(self, obj):
+        """Get a link to the admin page."""
+        if obj.id is None:
+            return mark_safe(
+                '<a class="disabled">Can not edit, please save model first</a>'
+            )
+        return mark_safe(
+            '<a href="{}">Click to edit</a>'.format(
+                reverse("admin:scripts_baseparameter_change", args=(obj.id,))
+            )
+        )
+
+
+class OutputTemplateInline(admin.StackedInline):
+    """Inline for OutputTemplates."""
+
+    form = OutputTemplateAdminForm
+    model = models.OutputTemplate
+    extra = 0
+
+    include = ["regex"]
 
 
 @admin.register(models.Script)
 class ScriptAdmin(NestedModelAdmin):
     """Profiles are displayed inline when creating/modifying processes."""
 
-    inlines = [ProfileInline, BaseParameterInline]
+    inlines = [ProfileInline, BaseParameterInline, OutputTemplateInline]
 
     list_display = ["name", "hostname"]
 
@@ -192,19 +231,5 @@ class InputTemplateAdmin(admin.ModelAdmin):
         "optional",
         "unique",
     ]
+    inlines = [FileDisplayRegexInline, FilePresetInline]
     list_filter = ["corresponding_profile", "extension"]
-
-
-@admin.register(models.OutputTemplate)
-class OutputTemplateAdmin(admin.ModelAdmin):
-    """Model admin for OutputTemplates."""
-
-    form = OutputTemplateAdminForm
-
-    list_display = [
-        "name",
-        "script",
-        "regex",
-    ]
-
-    list_filter = ["script"]

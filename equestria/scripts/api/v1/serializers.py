@@ -42,6 +42,11 @@ class ProfileSerializer(serializers.ModelSerializer):
     """Serializer for Product model."""
 
     input_templates = InputTemplateSerializer(many=True, read_only=True)
+    name = serializers.SerializerMethodField()
+
+    def get_name(self, instance):
+        """Get name."""
+        return instance.__str__()
 
     class Meta:
         """Meta class."""
@@ -49,6 +54,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = models.Profile
         fields = [
             "id",
+            "name",
             "script",
             "input_templates",
         ]

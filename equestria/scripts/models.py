@@ -325,6 +325,12 @@ class Profile(Model):
         script                 The script associated with this profile.
     """
 
+    name = CharField(
+        max_length=1024,
+        null=True,
+        blank=True,
+        help_text="Optional name, will be showed instead of profile number.",
+    )
     script = ForeignKey(
         Script,
         related_name="profiles",
@@ -340,7 +346,10 @@ class Profile(Model):
 
         :return: string including the identifier of this object
         """
-        return "Profile {}".format(self.pk)
+        if self.name:
+            return self.name
+        else:
+            return "Profile {}".format(self.pk)
 
     @property
     def templates(self):
@@ -469,12 +478,6 @@ class OutputTemplate(Model):
     directory.
     """
 
-    name = CharField(
-        max_length=1024,
-        null=False,
-        blank=False,
-        help_text="A name used for identification of an Output" " template.",
-    )
     script = ForeignKey(
         Script,
         on_delete=CASCADE,

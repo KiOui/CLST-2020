@@ -1,6 +1,26 @@
 from django.contrib import admin
 from processes import models
-from processes.forms import FilePresetAdminForm
+from processes.forms import FilePresetAdminForm, PreferableFileAdminForm
+
+
+class FileDisplayRegexInline(admin.StackedInline):
+    """Display File Regex objects inline."""
+
+    model = models.PreferableFile
+    form = PreferableFileAdminForm
+    extra = 0
+
+    include = ["regex"]
+
+
+class FilePresetInline(admin.StackedInline):
+    """Display File Preset objects inline."""
+
+    model = models.FilePreset
+    form = FilePresetAdminForm
+    extra = 0
+
+    include = ["regex"]
 
 
 @admin.register(models.Process)
@@ -9,26 +29,3 @@ class ProcessAdmin(admin.ModelAdmin):
 
     list_display = ["id", "project", "script", "status"]
     list_filter = ["status", "script", "project"]
-
-
-@admin.register(models.FileSetting)
-class FileSettingsAdmin(admin.ModelAdmin):
-    """Model admin for File settings."""
-
-    list_display = ["file", "input_template"]
-
-
-@admin.register(models.ParameterSetting)
-class ParameterSettingsAdmin(admin.ModelAdmin):
-    """Model admin for Parameter settings."""
-
-    list_display = ["value", "base_parameter"]
-
-
-@admin.register(models.FilePreset)
-class FilePresetAdmin(admin.ModelAdmin):
-    """Model admin for File presets."""
-
-    form = FilePresetAdminForm
-
-    list_display = ["name", "input_template", "regex"]

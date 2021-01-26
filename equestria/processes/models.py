@@ -668,14 +668,6 @@ class ParameterSetting(models.Model):
 class FilePreset(models.Model):
     """File presets."""
 
-    name = models.CharField(
-        max_length=1024,
-        null=False,
-        blank=False,
-        help_text="The name of the File Preset, only "
-        "used for distinguishing different File "
-        "Presets",
-    )
     input_template = models.ForeignKey(
         InputTemplate,
         on_delete=models.CASCADE,
@@ -690,6 +682,44 @@ class FilePreset(models.Model):
         " the corresponding Project. If one"
         " matches it will be created as a"
         " File Setting.",
+    )
+    regex = models.CharField(
+        max_length=1024,
+        null=False,
+        blank=False,
+        help_text="The regular expression to use when "
+        "matching file names of a Project.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        """Initialize file preset."""
+        super().__init__(*args, **kwargs)
+        self._regex = re.compile(self.regex)
+
+    @staticmethod
+    def match_any(filename, filepresets):
+        """Match any filename against a list of filepresets."""
+        for filepreset in filepresets:
+            if filepreset.match(filename):
+                return True
+        return False
+
+    def match(self, filename):
+        """Match a filename against this file preset."""
+        return self._regex.match(filename)
+
+
+class PreferableFile(models.Model):
+    """File list extension."""
+
+    input_template = models.ForeignKey(
+        InputTemplate,
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        help_text="The Input template for which to "
+        "register the File list regular expression. Files that match the regular expression are shown in the"
+        "Process configuration window under this input template.",
     )
     regex = models.CharField(
         max_length=1024,
