@@ -45,6 +45,15 @@
 
 {% block scripts %}
     <script>
+        function append_leading_zeroes(n){
+            if(n <= 9){
+                return "0" + n;
+            }
+            return n;
+        }
+        function date_format(date) {
+            return `${append_leading_zeroes(date.getHours())}:${append_leading_zeroes(date.getMinutes())}:${append_leading_zeroes(date.getSeconds())} - ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+        }
         let process_vue = new Vue({
             el: '#process-list',
             delimiters: ['<%', '%>'],
@@ -55,12 +64,14 @@
                 fetch('{% url 'v1:process-list' project=project %}')
                     .then(response => response.json())
                     .then(json => {
-                        this.processes = json.filter(process => process.script_type === '{{ script_type }}');
+                        json = json.filter(process => process.script_type === '{{ script_type }}');
+                        json.forEach(process => {process.created = date_format(new Date(process.created));});
+                        this.processes = json;
                     });
             }
         });
         let project_id = '{{ project.id }}';
         let script_id = '{% if script_type == "FA" %}{{ project.pipeline.fa_script.id }}{% else %}{{ project.pipeline.g2p_script.id }}{% endif %}';
-        add_update_list(update_and_callback, ["{% url 'v1:process-list' project=project %}", {}, function(data) {process_vue.processes = data.filter(process => process.script_type === '{{ script_type }}')}, 'GET']);
+        add_update_list(update_and_callback, ["{% url 'v1:process-list' project=project %}", {}, function(data) {data = data.filter(process => process.script_type === '{{ script_type }}'); data.forEach(process => {process.created = date_format(new Date(process.created))}); process_vue.processes = data;}, 'GET']);
     </script>
 {% endblock %}
