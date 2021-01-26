@@ -40,7 +40,7 @@
                     <div id="console_output">
                         <div class="mw-100" v-for="log_message in process_detail.log_messages">
                             <div class="log-message-time" v-if="log_message.time"><% log_message.time %></div>
-                            <div class="log-message-message"><% log_message.message %></div>
+                            <code class="log-message-message"><% log_message.message %></code>
                         </div>
                     </div>
                 </div>

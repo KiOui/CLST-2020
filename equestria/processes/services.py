@@ -1,7 +1,7 @@
 from projects.models import File
 from scripts.models import BaseParameter, Profile, InputTemplate
 
-from .models import ParameterSetting, FileSetting
+from .models import ParameterSetting, FileSetting, PreferableFile
 
 
 class InputTemplateSettingParser:
@@ -297,3 +297,18 @@ def find_ready_profiles(project, script):
         if len(errors) == 0:
             profiles_ready.append(profile)
     return profiles_ready
+
+
+def get_preferable_files(project, input_template):
+    """Get preferable files for an input template."""
+    preferable_files = PreferableFile.objects.filter(
+        input_template=input_template
+    )
+    files = []
+    if len(preferable_files) > 0:
+        for file in project.files:
+            if PreferableFile.match_any(file.filename, preferable_files):
+                files.append(file)
+        if len(files) > 0:
+            return files
+    return []

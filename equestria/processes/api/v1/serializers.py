@@ -1,7 +1,9 @@
 from processes.models import FileSetting, ParameterSetting, Process, LogMessage
+from processes.services import get_preferable_files
 from rest_framework import serializers
 from scripts.models import Script, Profile, InputTemplate, BaseParameter
 from processes import models
+from projects.api.v1.serializers import FileSerializer
 
 
 class LogMessageSerializer(serializers.ModelSerializer):
@@ -129,6 +131,7 @@ class InputTemplateSettingSerializer(serializers.ModelSerializer):
     """Serializer for input template settings."""
 
     files = serializers.SerializerMethodField()
+    preferable_files = serializers.SerializerMethodField()
 
     def get_files(self, instance):
         """Get all FileSettings belonging to the InputTemplate."""
@@ -139,6 +142,13 @@ class InputTemplateSettingSerializer(serializers.ModelSerializer):
                 file__project=self.context.get("view").kwargs.get("project"),
             )
         ]
+
+    def get_preferable_files(self, instance):
+        """Get all files preferable for this input template."""
+        preferable_files = get_preferable_files(
+            self.context.get("view").kwargs.get("project"), instance
+        )
+        return FileSerializer(preferable_files, many=True).data
 
     class Meta:
         """Meta class."""
@@ -151,6 +161,7 @@ class InputTemplateSettingSerializer(serializers.ModelSerializer):
             "unique",
             "optional",
             "files",
+            "preferable_files",
         ]
 
 
@@ -158,6 +169,11 @@ class ProfileSettingSerializer(serializers.ModelSerializer):
     """Serializer for profile settings."""
 
     input_templates = InputTemplateSettingSerializer(many=True, read_only=False)
+    name = serializers.SerializerMethodField()
+
+    def get_name(self, instance):
+        """Get name."""
+        return instance.__str__()
 
     class Meta:
         """Meta class."""
@@ -165,6 +181,7 @@ class ProfileSettingSerializer(serializers.ModelSerializer):
         model = Profile
         fields = [
             "id",
+            "name",
             "input_templates",
         ]
 

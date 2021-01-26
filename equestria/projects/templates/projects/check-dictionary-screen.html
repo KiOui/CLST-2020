@@ -29,7 +29,12 @@
                     <div class="btn btn-success disabled">Save files <span class="loader"></span></div>
                 </template>
                 <template v-else>
-                    <div class="btn btn-success" onclick="update_dictionary_containers()">Save files <i class="fas fa-cloud-upload-alt"></i></div>
+                    <template v-if="changes">
+                        <div class="btn btn-success" onclick="update_dictionary_containers()">Save files <i class="fas fa-cloud-upload-alt"></i></div>
+                    </template>
+                    <template v-else>
+                        <div class="btn btn-success disabled">Save files <i class="fas fa-cloud-upload-alt"></i></div>
+                    </template>
                 </template>
             </template>
             <template v-else>
@@ -59,8 +64,19 @@
             delimiters: ['<%', '%>'],
             data: {
                 files: [],
+                changes: null,
                 selected_textarea: null,
                 loading: false,
+            },
+            watch: {
+                files: {
+                    deep: true,
+                    handler(val, oldVal) {
+                        this.changes = this.changes !== null;
+                        let copy = JSON.parse(JSON.stringify(val));
+                        sync_with_server(copy);
+                    }
+                }
             },
             created() {
                 fetch('{% url 'v1:dictionary-get-update' project=project %}')
