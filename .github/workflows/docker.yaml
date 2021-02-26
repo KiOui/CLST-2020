@@ -7,7 +7,7 @@ on:
       - master
 
 env:
-  DOCKER_IMAGE: "docker.pkg.github.com/kioui/CLST-2020/equestria-production:latest"
+  DOCKER_IMAGE: "docker.pkg.github.com/kioui/clst-2020/equestria-production:latest"
 
 jobs:
   build-docker:
