@@ -132,6 +132,7 @@ class OutputTemplateInline(admin.StackedInline):
 
     form = OutputTemplateAdminForm
     model = models.OutputTemplate
+    inlines = []
     extra = 0
 
     include = ["regex"]
@@ -190,6 +191,7 @@ class InputTemplateInline(admin.StackedInline):
     """
 
     model = models.InputTemplate
+    inlines = []
     extra = 0
 
 
