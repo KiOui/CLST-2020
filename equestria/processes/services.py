@@ -250,8 +250,8 @@ def check_process_ready(project, profile):
         ).count()
         if template.optional and template.unique and file_settings_amount > 1:
             errors.append(
-                "Template '{}' requires a unique file but multiple were specified.".format(
-                    template.label
+                "Template '{} ({})' requires a unique file but multiple were specified.".format(
+                    template.template_id, template.label
                 )
             )
         elif (
@@ -260,8 +260,8 @@ def check_process_ready(project, profile):
             and file_settings_amount != 1
         ):
             errors.append(
-                "Template '{}' requires a unique file but {} were specified.".format(
-                    template.label, file_settings_amount
+                "Template '{} ({})' requires a unique file but {} were specified.".format(
+                    template.template_id, template.label, file_settings_amount
                 )
             )
         elif (
@@ -270,8 +270,8 @@ def check_process_ready(project, profile):
             and file_settings_amount < 1
         ):
             errors.append(
-                "Template '{}' requires a file but none were specified".format(
-                    template.label
+                "Template '{} ({})' requires a file but none were specified".format(
+                    template.template_id, template.label
                 )
             )
 
