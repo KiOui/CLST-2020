@@ -29,11 +29,13 @@ function start_process() {
 }
 
 function callback_start_process(data) {
+    console.log(data.errors);
     if (data.errors.length > 0) {
         let error_msg = "The following error(s) occurred while starting the process: \n";
         for (let i = 0; i < data.errors.length; i++) {
-            error_msg.concat(`${data.errors[i]}\n`);
+            error_msg = error_msg.concat(`${data.errors[i]}\n`);
         }
+        alert(error_msg);
     }
     else {
         window.location.href = data.redirect;

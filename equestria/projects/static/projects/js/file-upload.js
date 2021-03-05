@@ -11,7 +11,7 @@ $(function () {
             $("#modal-progress").modal("show");
         },
         stop: function (e) {
-            $("#modal-progress").modal("hide");
+            setTimeout(function() {$("#modal-progress").modal("hide")}, 500);
         },
         progressall: function (e, data) {
             var progress = parseInt(data.loaded / data.total * 100, 10);
