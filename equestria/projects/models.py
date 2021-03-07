@@ -50,6 +50,10 @@ class Project(models.Model):
             self.name,
         )
 
+    def get_files_with_extension(self, extension):
+        """Get all files in this project with an extension."""
+        return [x for x in self.files if x.extension == extension]
+
     @property
     def folder(self):
         """Get the relative path (relative to the media folder) of the project folder."""
